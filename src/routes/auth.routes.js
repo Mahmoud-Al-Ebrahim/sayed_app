@@ -20,5 +20,6 @@ router.post('/google', authLimiter, authController.googleAuth);
 router.post('/refresh', authLimiter, authController.refresh);
 router.post('/logout', authController.logout);
 router.get('/me', authenticate, authController.me);
+router.get('/profile/:integerId', authenticate, authController.getProfileByIntegerId);
 
 export default router;

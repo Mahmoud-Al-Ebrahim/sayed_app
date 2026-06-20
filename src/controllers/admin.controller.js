@@ -5,6 +5,12 @@ import * as providerService from '../services/provider.service.js';
 import * as catalogService from '../services/catalog.service.js';
 import * as transactionService from '../services/transaction.service.js';
 import * as orderService from '../services/order.service.js';
+import { User } from '../models/User.js';
+import { ProviderDeposit } from '../models/ProviderDeposit.js';
+import { ROLES, TRANSACTION_TYPES } from '../constants/index.js';
+import { adjustUserBalance } from '../services/ledger.service.js';
+import { toMoney } from '../utils/money.js';
+import { msg } from '../constants/messages.js';
 
 export async function listAgents(req, res, next) {
   try {
@@ -269,6 +275,182 @@ export async function refreshOrderStatus(req, res, next) {
   try {
     const order = await orderService.refreshOrderStatus(req.params.id);
     res.json({ success: true, data: { order } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listClients(req, res, next) {
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
+    
+    const [clients, total] = await Promise.all([
+      User.find({ role: ROLES.CLIENT })
+        .select('-passwordHash -refreshTokens')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      User.countDocuments({ role: ROLES.CLIENT }),
+    ]);
+
+    res.json({ success: true, data: { clients, total, page, limit } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function upgradeClientToAgent(req, res, next) {
+  try {
+    const client = await User.findById(req.params.id);
+    
+    if (!client) {
+      return res.status(404).json({ success: false, message: msg.USER_NOT_FOUND });
+    }
+
+    if (client.role !== ROLES.CLIENT) {
+      return res.status(400).json({ success: false, message: 'User is not a client' });
+    }
+
+    client.role = ROLES.AGENT;
+    await client.save();
+
+    res.json({ success: true, data: { user: client } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function depositToClient(req, res, next) {
+  try {
+    const client = await User.findById(req.params.id);
+    
+    if (!client) {
+      return res.status(404).json({ success: false, message: msg.USER_NOT_FOUND });
+    }
+
+    if (client.role !== ROLES.CLIENT) {
+      return res.status(400).json({ success: false, message: 'User is not a client' });
+    }
+
+    const transaction = await adjustUserBalance({
+      userId: client._id,
+      amount: req.body.amount,
+      type: TRANSACTION_TYPES.CLIENT_DEPOSIT,
+      performedBy: req.user._id,
+      counterparty: req.user._id,
+      description: req.body.note || 'Admin deposit to client',
+      idempotencyKey: req.body.idempotencyKey,
+    });
+
+    res.status(201).json({ success: true, data: { transaction } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function withdrawFromClient(req, res, next) {
+  try {
+    const client = await User.findById(req.params.id);
+    
+    if (!client) {
+      return res.status(404).json({ success: false, message: msg.USER_NOT_FOUND });
+    }
+
+    if (client.role !== ROLES.CLIENT) {
+      return res.status(400).json({ success: false, message: 'User is not a client' });
+    }
+
+    const transaction = await adjustUserBalance({
+      userId: client._id,
+      amount: req.body.amount,
+      type: TRANSACTION_TYPES.CLIENT_WITHDRAW,
+      performedBy: req.user._id,
+      counterparty: req.user._id,
+      isDebit: true,
+      description: req.body.note || 'Admin withdraw from client',
+      idempotencyKey: req.body.idempotencyKey,
+    });
+
+    res.status(201).json({ success: true, data: { transaction } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createProviderDeposit(req, res, next) {
+  try {
+    const { provider, amount, currency, depositDate, notes } = req.body;
+
+    const deposit = new ProviderDeposit({
+      provider,
+      amount,
+      currency,
+      depositDate: new Date(depositDate),
+      notes,
+      depositedBy: req.user._id,
+    });
+
+    await deposit.save();
+
+    res.status(201).json({ success: true, data: { deposit } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listProviderDeposits(req, res, next) {
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
+    const provider = req.query.provider;
+
+    const query = {};
+    if (provider) {
+      query.provider = provider;
+    }
+
+    const [deposits, total] = await Promise.all([
+      ProviderDeposit.find(query)
+        .populate('depositedBy', 'name email')
+        .sort({ depositDate: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      ProviderDeposit.countDocuments(query),
+    ]);
+
+    res.json({ success: true, data: { deposits, total, page, limit } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getProviderDeposit(req, res, next) {
+  try {
+    const deposit = await ProviderDeposit.findById(req.params.id)
+      .populate('depositedBy', 'name email');
+
+    if (!deposit) {
+      return res.status(404).json({ success: false, message: 'Deposit not found' });
+    }
+
+    res.json({ success: true, data: { deposit } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteProviderDeposit(req, res, next) {
+  try {
+    const deposit = await ProviderDeposit.findById(req.params.id);
+
+    if (!deposit) {
+      return res.status(404).json({ success: false, message: 'Deposit not found' });
+    }
+
+    await ProviderDeposit.findByIdAndDelete(req.params.id);
+
+    res.json({ success: true, data: { deposit } });
   } catch (err) {
     next(err);
   }

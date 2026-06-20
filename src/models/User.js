@@ -13,6 +13,13 @@ const refreshTokenSchema = new mongoose.Schema(
 
 const userSchema = new mongoose.Schema(
   {
+    /** Integer ID for deposit/withdraw operations and profile lookup */
+    integerId: {
+      type: Number,
+      required: true,
+      unique: true,
+      index: true,
+    },
     email: {
       type: String,
       required: true,
@@ -46,7 +53,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: Object.values(ROLES),
       required: true,
-      default: ROLES.AGENT,
+      default: ROLES.CLIENT,
       index: true,
     },
     /** Balance in Syrian Pounds (SYP) — admin and agents */
@@ -106,6 +113,10 @@ userSchema.methods.comparePassword = async function comparePassword(plainPasswor
 
 userSchema.statics.findByEmail = function findByEmail(email) {
   return this.findOne({ email: email.toLowerCase().trim() });
+};
+
+userSchema.statics.findByIntegerId = function findByIntegerId(integerId) {
+  return this.findOne({ integerId });
 };
 
 export const User = mongoose.model('User', userSchema);

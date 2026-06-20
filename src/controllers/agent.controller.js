@@ -3,6 +3,10 @@ import * as catalogService from '../services/catalog.service.js';
 import * as orderService from '../services/order.service.js';
 import * as transactionService from '../services/transaction.service.js';
 import * as exchangeRateService from '../services/exchangeRate.service.js';
+import { User } from '../models/User.js';
+import { ROLES, TRANSACTION_TYPES } from '../constants/index.js';
+import { adjustUserBalance } from '../services/ledger.service.js';
+import { msg } from '../constants/messages.js';
 
 export async function createBalanceRequest(req, res, next) {
   try {
@@ -109,6 +113,53 @@ export async function listTransactions(req, res, next) {
       limit: Number(req.query.limit) || 30,
     });
     res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function transferToClient(req, res, next) {
+  try {
+    const { clientIntegerId, amount, note } = req.body;
+
+    if (!clientIntegerId || !amount) {
+      return res.status(400).json({ success: false, message: 'Client ID and amount are required' });
+    }
+
+    const client = await User.findByIntegerId(parseInt(clientIntegerId));
+    
+    if (!client) {
+      return res.status(404).json({ success: false, message: msg.USER_NOT_FOUND });
+    }
+
+    if (client.role !== ROLES.CLIENT) {
+      return res.status(400).json({ success: false, message: 'Target user is not a client' });
+    }
+
+    // Debit from agent
+    const debitTx = await adjustUserBalance({
+      userId: req.user._id,
+      amount: amount,
+      type: TRANSACTION_TYPES.AGENT_TO_CLIENT_TRANSFER,
+      performedBy: req.user._id,
+      counterparty: client._id,
+      isDebit: true,
+      description: note || `Transfer to client ${client.integerId}`,
+      idempotencyKey: req.body.idempotencyKey,
+    });
+
+    // Credit to client
+    const creditTx = await adjustUserBalance({
+      userId: client._id,
+      amount: amount,
+      type: TRANSACTION_TYPES.AGENT_TO_CLIENT_TRANSFER,
+      performedBy: req.user._id,
+      counterparty: req.user._id,
+      description: note || `Transfer from agent`,
+      idempotencyKey: req.body.idempotencyKey ? `${req.body.idempotencyKey}:credit` : null,
+    });
+
+    res.status(201).json({ success: true, data: { debitTransaction: debitTx, creditTransaction: creditTx } });
   } catch (err) {
     next(err);
   }

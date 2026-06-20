@@ -3,7 +3,8 @@ import mongoose from 'mongoose';
 import { Order } from '../models/Order.js';
 import { Service } from '../models/Service.js';
 import { ExchangeRate } from '../models/ExchangeRate.js';
-import { ORDER_STATUS, TRANSACTION_TYPES } from '../constants/index.js';
+import { ExternalProvider } from '../models/ExternalProvider.js';
+import { ORDER_STATUS, TRANSACTION_TYPES, PROVIDER_TYPES } from '../constants/index.js';
 import { adjustUserBalance, adjustProviderBalance } from './ledger.service.js';
 import { createProviderClient } from '../providers/index.js';
 import { validateQuantity } from '../utils/quantity.js';
@@ -242,4 +243,133 @@ export async function refreshOrderStatus(orderId, { performedBy } = {}) {
   order.providerResponse = { ...order.providerResponse, latestCheck: latest.raw };
   await order.save();
   return order;
+}
+
+/**
+ * Place an order using service info from frontend (shehabi or tempo)
+ * The server determines which provider to use based on the service info
+ */
+export async function placeOrderFromFrontend({
+  performedBy,
+  providerType, // 'shehabi' or 'tempo'
+  productId, // External product ID from shehabi or tempo
+  quantity = 1,
+  customerInput = {},
+  price, // Price from frontend (in SYP for shehabi, USD for tempo)
+  idempotencyKey = null,
+}) {
+  if (!providerType || !productId) {
+    throw new Error(msg.SERVICE_NOT_FOUND_OR_INACTIVE);
+  }
+
+  if (!Object.values(PROVIDER_TYPES).includes(providerType)) {
+    throw new Error('Invalid provider type');
+  }
+
+  // Get the active provider for the specified type
+  const provider = await ExternalProvider.findOne({
+    providerType,
+    isActive: true,
+  });
+
+  if (!provider) {
+    throw new Error(msg.PROVIDER_NOT_ACTIVE);
+  }
+
+  const exchangeRate = await ExchangeRate.getActiveRate();
+  
+  // Calculate amounts based on provider type
+  let amountSYP, costUSD;
+  if (providerType === PROVIDER_TYPES.SHEHABI) {
+    // Shehabi prices are in SYP
+    amountSYP = price * quantity;
+    costUSD = amountSYP / exchangeRate.rate;
+  } else {
+    // Tempo prices are in USD
+    costUSD = price * quantity;
+    amountSYP = costUSD * exchangeRate.rate;
+  }
+
+  const orderUuid = crypto.randomUUID();
+
+  const session = await mongoose.startSession();
+  let order;
+
+  try {
+    await session.withTransaction(async () => {
+      const [createdOrder] = await Order.create(
+        [
+          {
+            service: null, // No service reference for frontend orders
+            externalProvider: provider._id,
+            performedBy: performedBy._id,
+            status: ORDER_STATUS.PROCESSING,
+            amountSYP: toMoney(amountSYP),
+            costUSD: toMoney(costUSD),
+            exchangeRateAtOrder: exchangeRate.rate,
+            quantity,
+            customerInput,
+            externalOrderUuid: orderUuid,
+            idempotencyKey,
+          },
+        ],
+        { session }
+      );
+
+      const userTx = await adjustUserBalance({
+        userId: performedBy._id,
+        amount: amountSYP,
+        type: TRANSACTION_TYPES.SERVICE_ORDER,
+        performedBy: performedBy._id,
+        order: createdOrder._id,
+        idempotencyKey: idempotencyKey ? `${idempotencyKey}:user` : `order:${createdOrder._id}:user`,
+        description: `Service order ${createdOrder._id} - ${providerType} product ${productId}`,
+        metadata: { providerType, productId, quantity },
+        session,
+      });
+
+      await adjustProviderBalance({
+        providerId: provider._id,
+        amount: costUSD,
+        type: TRANSACTION_TYPES.EXTERNAL_PROVIDER_DEBIT,
+        performedBy: performedBy._id,
+        order: createdOrder._id,
+        idempotencyKey: idempotencyKey
+          ? `${idempotencyKey}:provider`
+          : `order:${createdOrder._id}:provider`,
+        description: `Service order ${createdOrder._id} - ${providerType} product ${productId}`,
+        metadata: { providerType, productId, quantity },
+        session,
+      });
+
+      createdOrder.debitTransaction = userTx._id;
+      await createdOrder.save({ session });
+      order = createdOrder;
+    });
+  } finally {
+    session.endSession();
+  }
+
+  try {
+    const client = createProviderClient(provider);
+    const providerResult = await client.createOrder({
+      productId,
+      quantity,
+      params: customerInput,
+      orderUuid,
+    });
+
+    order.externalOrderId = providerResult.orderId;
+    order.providerResponse = providerResult.raw;
+    order.status = mapProviderStatus(provider.providerType, providerResult.status);
+    await order.save();
+  } catch (err) {
+    await refundFailedOrder(order, performedBy._id, err.message);
+    throw err;
+  }
+
+  return order.populate([
+    { path: 'externalProvider', select: 'name providerType' },
+    { path: 'performedBy', select: 'name email role' },
+  ]);
 }

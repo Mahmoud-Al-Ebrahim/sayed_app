@@ -1,6 +1,7 @@
 export const ROLES = {
   ADMIN: 'admin',
   AGENT: 'agent',
+  CLIENT: 'client',
 };
 
 export const AUTH_PROVIDERS = {
@@ -18,9 +19,9 @@ export const TRANSACTION_TYPES = {
   AGENT_DEPOSIT: 'agent_deposit',
   /** Admin debits an agent's balance */
   AGENT_WITHDRAW: 'agent_withdraw',
-  /** Agent spends balance on a service order */
+  /** Agent or admin spends balance on a service order */
   SERVICE_ORDER: 'service_order',
-  /** Refund to agent after a failed/cancelled order */
+  /** Refund to agent or client after a failed/cancelled order */
   ORDER_REFUND: 'order_refund',
   /** Manual balance correction by admin */
   BALANCE_ADJUSTMENT: 'balance_adjustment',
@@ -28,6 +29,12 @@ export const TRANSACTION_TYPES = {
   EXTERNAL_PROVIDER_DEBIT: 'external_provider_debit',
   /** External provider account credited */
   EXTERNAL_PROVIDER_CREDIT: 'external_provider_credit',
+  /** Agent transfers balance to client */
+  AGENT_TO_CLIENT_TRANSFER: 'agent_to_client_transfer',
+  /** Admin deposits to client balance */
+  CLIENT_DEPOSIT: 'client_deposit',
+  /** Admin withdraws from client balance */
+  CLIENT_WITHDRAW: 'client_withdraw',
 };
 
 export const TRANSACTION_STATUS = {

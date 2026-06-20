@@ -6,12 +6,12 @@ export async function register(req, res, next) {
   try {
     const { email, name, password } = req.body;
 
-    // Public registration creates agents only; admin is bootstrapped via env
+    // Public registration creates clients only; admin and agents are created by admin
     const result = await authService.registerWithEmail({
       email,
       name,
       password,
-      role: ROLES.AGENT,
+      role: ROLES.CLIENT,
     });
 
     res.status(201).json({
@@ -100,4 +100,19 @@ export async function logout(req, res, next) {
 
 export async function me(req, res) {
   res.json({ success: true, data: { user: req.user } });
+}
+
+export async function getProfileByIntegerId(req, res, next) {
+  try {
+    const { integerId } = req.params;
+    const user = await authService.getUserByIntegerId(parseInt(integerId));
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: msg.USER_NOT_FOUND });
+    }
+
+    res.json({ success: true, data: { user } });
+  } catch (err) {
+    next(err);
+  }
 }

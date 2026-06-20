@@ -13,6 +13,23 @@ import {
 
 const MAX_REFRESH_TOKENS = 5;
 
+async function generateUniqueIntegerId() {
+  let integerId;
+  let attempts = 0;
+  const maxAttempts = 100;
+
+  do {
+    integerId = Math.floor(100000 + Math.random() * 900000); // Generate 6-digit ID
+    const existing = await User.findByIntegerId(integerId);
+    if (!existing) {
+      return integerId;
+    }
+    attempts++;
+  } while (attempts < maxAttempts);
+
+  throw new Error('Failed to generate unique integer ID after multiple attempts');
+}
+
 function validateEmail(email) {
   if (!email || !validator.isEmail(email)) {
     throw new Error(msg.EMAIL_REQUIRED);
@@ -60,7 +77,10 @@ export async function registerWithEmail({ email, name, password, role = ROLES.AG
     throw new Error(msg.EMAIL_EXISTS);
   }
 
+  const integerId = await generateUniqueIntegerId();
+
   const user = new User({
+    integerId,
     email: email.toLowerCase().trim(),
     name: name.trim(),
     role,
@@ -86,11 +106,13 @@ export async function authenticateWithGoogle(idToken) {
   }).select('+refreshTokens +passwordHash');
 
   if (!user) {
+    const integerId = await generateUniqueIntegerId();
     user = new User({
+      integerId,
       email: googleUser.email,
       name: googleUser.name,
       googleId: googleUser.googleId,
-      role: ROLES.AGENT,
+      role: ROLES.CLIENT,
       authProviders: [AUTH_PROVIDERS.GOOGLE],
     });
     await user.save();
@@ -178,4 +200,12 @@ export async function logout(refreshToken) {
   const tokenHash = hashToken(refreshToken);
   user.refreshTokens = user.refreshTokens.filter((t) => t.tokenHash !== tokenHash);
   await user.save();
+}
+
+export async function getUserByIntegerId(integerId) {
+  const user = await User.findByIntegerId(integerId);
+  if (!user) {
+    throw new Error(msg.USER_NOT_FOUND);
+  }
+  return user;
 }

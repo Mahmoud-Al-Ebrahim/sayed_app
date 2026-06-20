@@ -12,6 +12,11 @@ router.patch('/agents/:id', adminController.updateAgent);
 router.post('/agents/:id/deposit', adminController.depositToAgent);
 router.post('/agents/:id/withdraw', adminController.withdrawFromAgent);
 
+router.get('/clients', adminController.listClients);
+router.patch('/clients/:id/upgrade', adminController.upgradeClientToAgent);
+router.post('/clients/:id/deposit', adminController.depositToClient);
+router.post('/clients/:id/withdraw', adminController.withdrawFromClient);
+
 router.get('/balance-requests', adminController.listBalanceRequests);
 router.post('/balance-requests/:id/approve', adminController.approveBalanceRequest);
 router.post('/balance-requests/:id/reject', adminController.rejectBalanceRequest);
@@ -35,5 +40,10 @@ router.get('/transactions', adminController.listTransactions);
 router.get('/orders', adminController.listOrders);
 router.post('/orders', adminController.placeOrder);
 router.post('/orders/:id/refresh', adminController.refreshOrderStatus);
+
+router.get('/provider-deposits', adminController.listProviderDeposits);
+router.post('/provider-deposits', adminController.createProviderDeposit);
+router.get('/provider-deposits/:id', adminController.getProviderDeposit);
+router.delete('/provider-deposits/:id', adminController.deleteProviderDeposit);
 
 export default router;

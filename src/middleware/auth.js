@@ -36,3 +36,4 @@ export function requireRole(...roles) {
 
 export const requireAdmin = requireRole(ROLES.ADMIN);
 export const requireAgent = requireRole(ROLES.AGENT);
+export const requireClient = requireRole(ROLES.CLIENT);

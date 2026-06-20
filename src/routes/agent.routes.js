@@ -17,6 +17,8 @@ router.get('/orders', agentController.listOrders);
 router.get('/orders/:id', agentController.getOrder);
 router.post('/orders/:id/refresh', agentController.refreshOrderStatus);
 
+router.post('/transfer-to-client', agentController.transferToClient);
+
 router.get('/transactions', agentController.listTransactions);
 
 export default router;
