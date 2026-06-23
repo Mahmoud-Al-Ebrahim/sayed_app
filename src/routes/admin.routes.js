@@ -1,11 +1,12 @@
 import { Router } from 'express';
-import { authenticate, requireAdmin } from '../middleware/auth.js';
+import { authenticate, requireAdmin, requireAgentOrAdmin } from '../middleware/auth.js';
 import * as adminController from '../controllers/admin.controller.js';
 
 const router = Router();
 
 router.use(authenticate, requireAdmin);
 
+// Admin-only endpoints
 router.get('/agents', adminController.listAgents);
 router.post('/agents', adminController.createAgent);
 router.patch('/agents/:id', adminController.updateAgent);
@@ -13,6 +14,7 @@ router.post('/agents/:id/deposit', adminController.depositToAgent);
 router.post('/agents/:id/withdraw', adminController.withdrawFromAgent);
 
 router.get('/clients', adminController.listClients);
+// Client upgrade is admin-only
 router.patch('/clients/:id/upgrade', adminController.upgradeClientToAgent);
 router.post('/clients/:id/deposit', adminController.depositToClient);
 router.post('/clients/:id/withdraw', adminController.withdrawFromClient);
