@@ -2,24 +2,21 @@ import { providerFetch, ProviderError } from './base.client.js';
 import { msg } from '../constants/messages.js';
 import { resolveProviderMessage } from '../utils/resolveMessage.js';
 
-const DEFAULT_BASE_URL = 'https://alshhabi.com/api/fastapi';
+const baseUrl = 'https://alshhabi.com/api/fastapi';
+const apiToken = process.env.SHEHABI_API_TOKEN;
 
 export class ShehabiClient {
-  constructor({ apiToken = process.env.SHEHABI_API_TOKEN, baseUrl = DEFAULT_BASE_URL }) {
-    if (!apiToken) throw new ProviderError(msg.SHEHABI_TOKEN_REQUIRED);
-    this.apiToken = apiToken;
-    this.baseUrl = baseUrl.replace(/\/$/, '');
-  }
+  constructor(){}
 
   headers() {
     return {
-      apiToken: this.apiToken,
+      apiToken: apiToken,
       Accept: 'application/json',
     };
   }
 
   async getProfile() {
-    const data = await providerFetch(`${this.baseUrl}/balance`, {
+    const data = await providerFetch(`${baseUrl}/balance`, {
       headers: this.headers(),
     });
 
@@ -36,7 +33,7 @@ export class ShehabiClient {
   }
 
   async getProducts() {
-    const data = await providerFetch(`${this.baseUrl}/products`, {
+    const data = await providerFetch(`${baseUrl}/products`, {
       headers: this.headers(),
     });
 
@@ -55,7 +52,7 @@ export class ShehabiClient {
     if (orderUuid) query.set('uuid', orderUuid);
 
     const data = await providerFetch(
-      `${this.baseUrl}/requestorder/${productId}/params?${query}`,
+      `${baseUrl}/requestorder/${productId}/params?${query}`,
       { headers: this.headers() }
     );
 
@@ -75,7 +72,7 @@ export class ShehabiClient {
 
   async checkOrders({ orderIds = [] }) {
     const data = await providerFetch(
-      `${this.baseUrl}/checkorders?order_ids=${orderIds.join(',')}`,
+      `${baseUrl}/checkorders?order_ids=${orderIds.join(',')}`,
       { headers: this.headers() }
     );
 
