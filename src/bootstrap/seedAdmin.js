@@ -7,10 +7,9 @@ import { encrypt } from '../utils/crypto.js';
 
 async function seedProvider({ name, providerType, apiToken, websiteUrl }) {
   if (!apiToken) return;
-
   const exists = await ExternalProvider.exists({ providerType });
   if (exists) return;
-
+try{
   await ExternalProvider.create({
     name,
     providerType,
@@ -19,7 +18,9 @@ async function seedProvider({ name, providerType, apiToken, websiteUrl }) {
     credentials: encrypt(apiToken),
     notes: 'Bootstrapped from environment variables',
   });
-
+}catch(e){
+console.log(`error: ${e}`);
+}
   console.log(`Bootstrap provider created: ${name}`);
 }
 
