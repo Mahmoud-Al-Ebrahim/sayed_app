@@ -5,7 +5,7 @@ import { resolveProviderMessage } from '../utils/resolveMessage.js';
 const DEFAULT_BASE_URL = 'https://alshhabi.com/api/fastapi';
 
 export class ShehabiClient {
-  constructor({ apiToken, baseUrl = DEFAULT_BASE_URL }) {
+  constructor({ apiToken = process.env.SHEHABI_API_TOKEN, baseUrl = DEFAULT_BASE_URL }) {
     if (!apiToken) throw new ProviderError(msg.SHEHABI_TOKEN_REQUIRED);
     this.apiToken = apiToken;
     this.baseUrl = baseUrl.replace(/\/$/, '');

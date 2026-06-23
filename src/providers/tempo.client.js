@@ -4,7 +4,7 @@ import { resolveProviderMessage } from '../utils/resolveMessage.js';
 const DEFAULT_BASE_URL = 'https://api.tempo-card.com';
 
 export class TempoClient {
-  constructor({ apiToken, baseUrl = DEFAULT_BASE_URL }) {
+  constructor({ apiToken = process.env.TEMPO_API_TOKEN, baseUrl = DEFAULT_BASE_URL }) {
     if (!apiToken) throw new ProviderError(msg.TEMPO_TOKEN_REQUIRED);
     this.apiToken = apiToken;
     this.baseUrl = baseUrl.replace(/\/$/, '');
