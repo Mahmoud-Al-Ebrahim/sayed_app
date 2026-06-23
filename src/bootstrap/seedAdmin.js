@@ -26,7 +26,7 @@ async function seedProvider({ name, providerType, apiToken, websiteUrl }) {
 export async function seedAdminAndDefaults() {
   const adminExists = await User.exists({ role: ROLES.ADMIN });
   if (!adminExists) {
-    const { email, password, name } = env.bootstrapAdmin;
+    const { email, password, name , integerId} = env.bootstrapAdmin;
     if (!email || !password) {
       console.warn('No ADMIN_EMAIL / ADMIN_PASSWORD set — skipping admin bootstrap');
     } else {
@@ -34,6 +34,7 @@ export async function seedAdminAndDefaults() {
         email: email.toLowerCase().trim(),
         name,
         role: ROLES.ADMIN,
+        integerId: integerId,
         authProviders: [AUTH_PROVIDERS.LOCAL],
       });
 

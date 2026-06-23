@@ -27,6 +27,7 @@ export const env = {
     email: process.env.ADMIN_EMAIL,
     password: process.env.ADMIN_PASSWORD,
     name: process.env.ADMIN_NAME || 'Admin',
+    integerId: process.env.ADMIN_INTEGER_ID
   },
   encryptionKey: process.env.ENCRYPTION_KEY,
   providers: {
