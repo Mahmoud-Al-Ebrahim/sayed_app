@@ -30,6 +30,11 @@ const externalProviderSchema = new mongoose.Schema(
       default: CURRENCIES.USD,
     },
     /** Cached upstream balance in the provider's native currency */
+        balanceSYP: {
+      type: mongoose.Schema.Types.Decimal128,
+      default: () => mongoose.Types.Decimal128.fromString('0.00'),
+      min: 0,
+    },
     balanceUSD: {
       type: mongoose.Schema.Types.Decimal128,
       default: () => mongoose.Types.Decimal128.fromString('0.00'),

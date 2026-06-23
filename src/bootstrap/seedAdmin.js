@@ -4,13 +4,14 @@ import { ExternalProvider } from '../models/ExternalProvider.js';
 import { ROLES, AUTH_PROVIDERS, PROVIDER_TYPES, PROVIDER_DEFAULT_CURRENCY } from '../constants/index.js';
 import { env } from '../config/env.js';
 import { encrypt } from '../utils/crypto.js';
+import * as adminController from '../controllers/admin.controller.js';
 
 async function seedProvider({ name, providerType, apiToken, websiteUrl }) {
   if (!apiToken) return;
   const exists = await ExternalProvider.exists({ providerType });
   if (exists) return;
 try{
-  await ExternalProvider.create({
+  const p = await ExternalProvider.create({
     name,
     providerType,
     websiteUrl,
@@ -18,6 +19,7 @@ try{
     credentials: encrypt(apiToken),
     notes: 'Bootstrapped from environment variables',
   });
+  adminController.syncProviderBalance();
 }catch(e){
 console.log(`error: ${e}`);
 }

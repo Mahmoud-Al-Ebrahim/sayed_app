@@ -1,21 +1,18 @@
 import { providerFetch, ProviderError } from './base.client.js';
 import { msg } from '../constants/messages.js';
 import { resolveProviderMessage } from '../utils/resolveMessage.js';
-const DEFAULT_BASE_URL = 'https://api.tempo-card.com';
-
+const baseUrl = 'https://api.tempo-card.com';
+const apiToken = process.env.TEMPO_API_TOKEN;
 export class TempoClient {
-  constructor({ apiToken = process.env.TEMPO_API_TOKEN, baseUrl = DEFAULT_BASE_URL }) {
-    if (!apiToken) throw new ProviderError(msg.TEMPO_TOKEN_REQUIRED);
-    this.apiToken = apiToken;
-    this.baseUrl = baseUrl.replace(/\/$/, '');
+  constructor() {
   }
 
   headers() {
-    return { 'api-token': this.apiToken };
+    return { 'api-token': apiToken };
   }
 
   async getProfile() {
-    const data = await providerFetch(`${this.baseUrl}/client/api/profile`, {
+    const data = await providerFetch(`${baseUrl}/client/api/profile`, {
       headers: this.headers(),
     });
     return {
@@ -27,7 +24,7 @@ export class TempoClient {
   }
 
   async getProducts() {
-    return providerFetch(`${this.baseUrl}/client/api/products`, {
+    return providerFetch(`${baseUrl}/client/api/products`, {
       headers: this.headers(),
     });
   }
@@ -40,7 +37,7 @@ export class TempoClient {
     });
 
     const data = await providerFetch(
-      `${this.baseUrl}/client/api/newOrder/${productId}/params?${query}`,
+      `${baseUrl}/client/api/newOrder/${productId}/params?${query}`,
       { headers: this.headers() }
     );
 
@@ -60,7 +57,7 @@ export class TempoClient {
     const ids = orderIds.join(',');
     const uuidParam = useUuid ? '&uuid=1' : '';
     const data = await providerFetch(
-      `${this.baseUrl}/client/api/check?orders=[${ids}]${uuidParam}`,
+      `${baseUrl}/client/api/check?orders=[${ids}]${uuidParam}`,
       { headers: this.headers() }
     );
 

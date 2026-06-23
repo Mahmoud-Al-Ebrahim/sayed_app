@@ -105,7 +105,8 @@ export async function syncProviderBalance(providerId) {
   const client = createProviderClient(provider);
   const profile = await client.getProfile();
 
-  provider.balanceUSD = toMoney(profile.balance ?? profile.balanceUSD);
+  provider.balanceSYP = toMoney(profile.balance);
+  provider.balanceUSD = toMoney(profile.balanceUSD);
   provider.lastSyncedAt = new Date();
   await provider.save();
 
