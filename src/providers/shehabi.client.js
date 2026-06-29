@@ -10,7 +10,7 @@ export class ShehabiClient {
 
   headers() {
     return {
-      apiToken: apiToken,
+      'api-token': apiToken,
       Accept: 'application/json',
     };
   }
@@ -44,7 +44,6 @@ export class ShehabiClient {
       order_uuid: orderUuid,
       ...params,
     });
-    if (orderUuid) query.set('uuid', orderUuid);
 
     const data = await providerFetch(
       `${baseUrl}/client/api/newOrder/${productId}/params?${query}`,
@@ -57,17 +56,19 @@ export class ShehabiClient {
     }
 
     return {
-      orderId: data.data.order_number,
+      orderId: data.data.order_id,
       status: data.data.status,
-      actualCostUSD: parseFloat(data.data.amount),
+      actualCostUSD: parseFloat(data.data.price),
       replay: data.data.replay_api,
       raw: data,
     };
   }
 
-  async checkOrders({ orderIds = [] }) {
+  async checkOrders({ orderIds = [], useUuid = false }) {
+    const ids = orderIds.join(',');
+    const uuidParam = useUuid ? '&uuid=1' : '';
     const data = await providerFetch(
-      `${baseUrl}/checkorders?order_ids=${orderIds.join(',')}`,
+      `${baseUrl}/client/api/check?orders=[${ids}]${uuidParam}`,
       { headers: this.headers() }
     );
 

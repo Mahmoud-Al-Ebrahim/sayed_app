@@ -137,3 +137,102 @@ export function resolveShehabiPricingType(product) {
   const max = Number(product.maxCount ?? 1);
   return min === 1 && max === 1 ? 'fixed' : 'per_unit';
 }
+
+// MTN categories to detect
+const MTN_CATEGORIES = [
+  10, 12, 15, 20, 25, 30, 35, 40, 50, 60, 70, 85, 90, 100, 110, 150, 170, 190, 200, 230, 260, 280, 300, 320, 340, 360, 400, 420, 440, 460, 480, 500, 550, 600, 650, 700, 750, 1000, 1500, 2000, 2500, 3000, 3500, 3600, 4500, 4800, 5000, 5500, 6000, 7200,
+];
+
+// Syriatel categories to detect
+const SYRIATEL_CATEGORIES = [
+  192, 288, 384, 480, 576, 961, 2019, 2307, 2403, 2596, 3076, 4038, 4519, 4807, 5288, 6250, 6826, 7211, 7788, 8173, 8653, 9615, 10096, 10576, 11538, 13076, 14423, 16057, 16346, 17307, 18365, 19230, 21153, 24038, 28846, 31730, 37019, 43269, 48076, 57692, 72115, 76923, 95192, 105769, 192307, 211538, 240384, 384615,
+];
+
+// Special product IDs
+const SPECIAL_PRODUCTS = {
+  CASH_SYRIATEL: 3858,
+  CASH_MTN: 4888,
+  BILLS_MTN: 4879,
+  BILLS_SYRIATEL: 3835,
+  WHOLESALE_SYRIATEL: 3858, // Same as cash syriatel
+  WHOLESALE_MTN: null, // Not available yet
+};
+
+/**
+ * Check if a product is an MTN or Syriatel product based on category detection
+ * @param {Object} product - The product object from Shehabi API
+ * @returns {boolean} - True if product matches MTN or Syriatel categories
+ */
+export function isMtnOrSyriatelProduct(product) {
+  const name = (product.name || '').replace(/\s+/g, '');
+  const categoryName = (product.category_name || '').toLowerCase();
+  const id = product.id;
+
+  // Check for special products by ID
+  if (id === SPECIAL_PRODUCTS.CASH_SYRIATEL || id === SPECIAL_PRODUCTS.CASH_MTN ||
+      id === SPECIAL_PRODUCTS.BILLS_MTN || id === SPECIAL_PRODUCTS.BILLS_SYRIATEL) {
+    return true;
+  }
+
+  // Check category names for MTN/Syriatel keywords
+  if (categoryName.includes('mtn') || categoryName.includes('syriatel') ||
+      categoryName.includes('سيريتل') || categoryName.includes('ام تي ان')) {
+    return true;
+  }
+
+  // Check for MTN categories (e.g., "MTN12" or "12MTN")
+  for (const cat of MTN_CATEGORIES) {
+    const mtnPattern1 = `MTN${cat}`;
+    const mtnPattern2 = `${cat}MTN`;
+    if (name.includes(mtnPattern1) || name.includes(mtnPattern2)) {
+      return true;
+    }
+  }
+
+  // Check for Syriatel categories (e.g., "SYRIATEL4.8" for 480, "SYRIATEL173.07" for 17307)
+  for (const cat of SYRIATEL_CATEGORIES) {
+    // Convert to decimal format for matching
+    const decimalValue = cat / 100;
+    const syriatelPattern1 = `SYRIATEL${decimalValue}`;
+    const syriatelPattern2 = `SYRIATEL${cat}`;
+    if (name.includes(syriatelPattern1) || name.includes(syriatelPattern2)) {
+      return true;
+    }
+  }
+
+  // Check for كاش (cash) and فواتير (bills) and كازية (wholesale)
+  if (name.includes('كاش') || name.includes('فاتورة') || name.includes('كازية') ||
+      categoryName.includes('كاش') || categoryName.includes('فواتير') || categoryName.includes('كازية')) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Get the product type (cash, bills, wholesale, or regular)
+ * @param {Object} product - The product object from Shehabi API
+ * @returns {string} - Product type
+ */
+export function getShehabiProductType(product) {
+  const name = (product.name || '').toLowerCase();
+  const categoryName = (product.category_name || '').toLowerCase();
+  const id = product.id;
+
+  if (id === SPECIAL_PRODUCTS.CASH_SYRIATEL || id === SPECIAL_PRODUCTS.CASH_MTN ||
+      categoryName.includes('كاش') || name.includes('كاش')) {
+    return 'cash';
+  }
+
+  if (id === SPECIAL_PRODUCTS.BILLS_MTN || id === SPECIAL_PRODUCTS.BILLS_SYRIATEL ||
+      categoryName.includes('فواتير') || name.includes('فاتورة')) {
+    return 'bills';
+  }
+
+  if (id === SPECIAL_PRODUCTS.WHOLESALE_SYRIATEL ||
+      categoryName.includes('جملة') || name.includes('كازية')) {
+    return 'wholesale';
+  }
+
+  return 'regular';
+}

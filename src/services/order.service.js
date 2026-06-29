@@ -7,7 +7,7 @@ import { ExternalProvider } from '../models/ExternalProvider.js';
 import { Badge } from '../models/Badge.js';
 import { ORDER_STATUS, TRANSACTION_TYPES, PROVIDER_TYPES } from '../constants/index.js';
 import { adjustUserBalance, adjustProviderBalance } from './ledger.service.js';
-import { createProviderClient } from '../providers/index.js';
+import { createProviderClient, ProviderError } from '../providers/index.js';
 import { validateQuantity } from '../utils/quantity.js';
 import { calculateOrderAmounts } from '../utils/pricing.js';
 import { mapProviderStatus } from '../utils/orderStatus.js';
@@ -60,83 +60,88 @@ export async function placeOrder({
   const { amountSYP, costUSD } = calculateOrderAmounts(service, qty);
   const orderUuid = crypto.randomUUID();
 
+  // Step 1: Create order with provider first
+  const client = createProviderClient(service.externalProvider);
+  let providerResult;
+  try {
+    providerResult = await client.createOrder({
+      productId: service.externalServiceId,
+      quantity: qty,
+      params: customerInput,
+      orderUuid,
+    });
+  } catch (err) {
+    throw new ProviderError(msg.SHEHABI_ORDER_FAILED, { raw: err.message });
+  }
+
+  // Step 2: Reflect changes to local data
   const session = await mongoose.startSession();
   let order;
 
   try {
     await session.withTransaction(async () => {
+      const mappedStatus = mapProviderStatus(
+        service.externalProvider.providerType,
+        providerResult.status
+      );
+
       const [createdOrder] = await Order.create(
         [
           {
             service: service._id,
             externalProvider: service.externalProvider._id,
             performedBy: performedBy._id,
-            status: ORDER_STATUS.PROCESSING,
+            status: mappedStatus,
             amountSYP: toMoney(amountSYP),
             costUSD: toMoney(costUSD),
             exchangeRateAtOrder: exchangeRate.rate,
             quantity: qty,
             customerInput,
+            externalOrderId: providerResult.orderId,
             externalOrderUuid: orderUuid,
+            providerResponse: providerResult.raw,
             idempotencyKey,
           },
         ],
         { session }
       );
 
-      const userTx = await adjustUserBalance({
-        userId: performedBy._id,
-        amount: amountSYP,
-        type: TRANSACTION_TYPES.SERVICE_ORDER,
-        performedBy: performedBy._id,
-        order: createdOrder._id,
-        idempotencyKey: idempotencyKey ? `${idempotencyKey}:user` : `order:${createdOrder._id}:user`,
-        description: `Service order ${createdOrder._id}`,
-        metadata: { serviceId: service._id, quantity: qty },
-        session,
-      });
+      // Only debit balances if order is not failed/rejected
+      if (mappedStatus !== ORDER_STATUS.FAILED && mappedStatus !== ORDER_STATUS.CANCELLED) {
+        const userTx = await adjustUserBalance({
+          userId: performedBy._id,
+          amount: amountSYP,
+          type: TRANSACTION_TYPES.SERVICE_ORDER,
+          performedBy: performedBy._id,
+          order: createdOrder._id,
+          idempotencyKey: idempotencyKey ? `${idempotencyKey}:user` : `order:${createdOrder._id}:user`,
+          description: `Service order ${createdOrder._id}`,
+          metadata: { serviceId: service._id, quantity: qty },
+          session,
+        });
 
-      await adjustProviderBalance({
-        providerId: service.externalProvider._id,
-        amount: costUSD,
-        type: TRANSACTION_TYPES.EXTERNAL_PROVIDER_DEBIT,
-        performedBy: performedBy._id,
-        order: createdOrder._id,
-        idempotencyKey: idempotencyKey
-          ? `${idempotencyKey}:provider`
-          : `order:${createdOrder._id}:provider`,
-        description: `Service order ${createdOrder._id}`,
-        metadata: { serviceId: service._id, quantity: qty },
-        session,
-      });
+        await adjustProviderBalance({
+          providerId: service.externalProvider._id,
+          amount: costUSD,
+          type: TRANSACTION_TYPES.EXTERNAL_PROVIDER_DEBIT,
+          performedBy: performedBy._id,
+          order: createdOrder._id,
+          idempotencyKey: idempotencyKey
+            ? `${idempotencyKey}:provider`
+            : `order:${createdOrder._id}:provider`,
+          description: `Service order ${createdOrder._id}`,
+          metadata: { serviceId: service._id, quantity: qty },
+          session,
+        });
 
-      createdOrder.debitTransaction = userTx._id;
-      await createdOrder.save({ session });
+        createdOrder.debitTransaction = userTx._id;
+        await createdOrder.save({ session });
+      }
+
       order = createdOrder;
     });
   } finally {
     session.endSession();
-  }
-
-  try {
-    const client = createProviderClient(service.externalProvider);
-    const providerResult = await client.createOrder({
-      productId: service.externalServiceId,
-      quantity: qty,
-      params: customerInput,
-      orderUuid,
-    });
-
-    order.externalOrderId = providerResult.orderId;
-    order.providerResponse = providerResult.raw;
-    order.status = mapProviderStatus(
-      service.externalProvider.providerType,
-      providerResult.status
-    );
-    await order.save();
-  } catch (err) {
-    await refundFailedOrder(order, performedBy._id, err.message);
-    throw err;
   }
 
   return order.populate([
@@ -330,18 +335,35 @@ export async function placeOrderFromFrontend({
 
   const orderUuid = crypto.randomUUID();
 
+  // Step 1: Create order with provider first
+  const client = createProviderClient(provider);
+  let providerResult;
+  try {
+    providerResult = await client.createOrder({
+      productId,
+      quantity,
+      params: customerInput,
+      orderUuid,
+    });
+  } catch (err) {
+    throw new ProviderError(msg.TEMPO_ORDER_FAILED, { raw: err.message });
+  }
+
+  // Step 2: Reflect changes to local data
   const session = await mongoose.startSession();
   let order;
 
   try {
     await session.withTransaction(async () => {
+      const mappedStatus = mapProviderStatus(provider.providerType, providerResult.status);
+
       const [createdOrder] = await Order.create(
         [
           {
             service: null, // No service reference for frontend orders
             externalProvider: provider._id,
             performedBy: performedBy._id,
-            status: ORDER_STATUS.PROCESSING,
+            status: mappedStatus,
             amountSYP: toMoney(amountSYP),
             costUSD: toMoney(costUSD),
             profitUSD: toMoney(profitUSD * quantity),
@@ -349,63 +371,51 @@ export async function placeOrderFromFrontend({
             exchangeRateAtOrder: exchangeRate.rate,
             quantity,
             customerInput,
+            externalOrderId: providerResult.orderId,
             externalOrderUuid: orderUuid,
+            providerResponse: providerResult.raw,
             idempotencyKey,
           },
         ],
         { session }
       );
 
-      const userTx = await adjustUserBalance({
-        userId: performedBy._id,
-        amount: amountSYP,
-        type: TRANSACTION_TYPES.SERVICE_ORDER,
-        performedBy: performedBy._id,
-        order: createdOrder._id,
-        idempotencyKey: idempotencyKey ? `${idempotencyKey}:user` : `order:${createdOrder._id}:user`,
-        description: `Service order ${createdOrder._id} - ${providerType} product ${productId}`,
-        metadata: { providerType, productId, quantity },
-        session,
-      });
+      // Only debit balances if order is not failed/rejected
+      if (mappedStatus !== ORDER_STATUS.FAILED && mappedStatus !== ORDER_STATUS.CANCELLED) {
+        const userTx = await adjustUserBalance({
+          userId: performedBy._id,
+          amount: amountSYP,
+          type: TRANSACTION_TYPES.SERVICE_ORDER,
+          performedBy: performedBy._id,
+          order: createdOrder._id,
+          idempotencyKey: idempotencyKey ? `${idempotencyKey}:user` : `order:${createdOrder._id}:user`,
+          description: `Service order ${createdOrder._id} - ${providerType} product ${productId}`,
+          metadata: { providerType, productId, quantity },
+          session,
+        });
 
-      await adjustProviderBalance({
-        providerId: provider._id,
-        amount: costUSD,
-        type: TRANSACTION_TYPES.EXTERNAL_PROVIDER_DEBIT,
-        performedBy: performedBy._id,
-        order: createdOrder._id,
-        idempotencyKey: idempotencyKey
-          ? `${idempotencyKey}:provider`
-          : `order:${createdOrder._id}:provider`,
-        description: `Service order ${createdOrder._id} - ${providerType} product ${productId}`,
-        metadata: { providerType, productId, quantity },
-        session,
-      });
+        await adjustProviderBalance({
+          providerId: provider._id,
+          amount: costUSD,
+          type: TRANSACTION_TYPES.EXTERNAL_PROVIDER_DEBIT,
+          performedBy: performedBy._id,
+          order: createdOrder._id,
+          idempotencyKey: idempotencyKey
+            ? `${idempotencyKey}:provider`
+            : `order:${createdOrder._id}:provider`,
+          description: `Service order ${createdOrder._id} - ${providerType} product ${productId}`,
+          metadata: { providerType, productId, quantity },
+          session,
+        });
 
-      createdOrder.debitTransaction = userTx._id;
-      await createdOrder.save({ session });
+        createdOrder.debitTransaction = userTx._id;
+        await createdOrder.save({ session });
+      }
+
       order = createdOrder;
     });
   } finally {
     session.endSession();
-  }
-
-  try {
-    const client = createProviderClient(provider);
-    const providerResult = await client.createOrder({
-      productId,
-      quantity,
-      params: customerInput,
-      orderUuid,
-    });
-
-    order.externalOrderId = providerResult.orderId;
-    order.providerResponse = providerResult.raw;
-    order.status = mapProviderStatus(provider.providerType, providerResult.status);
-    await order.save();
-  } catch (err) {
-    await refundFailedOrder(order, performedBy._id, err.message);
-    throw err;
   }
 
   return order.populate([
