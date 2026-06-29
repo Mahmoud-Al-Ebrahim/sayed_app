@@ -1,0 +1,176 @@
+import { ExternalProvider } from '../models/ExternalProvider.js';
+import { ProductProfit } from '../models/ProductProfit.js';
+import { Badge } from '../models/Badge.js';
+import { createProviderClient } from '../providers/index.js';
+import { isTargetShehabiProduct, mapShehabiProduct } from '../utils/shehabiProducts.js';
+import { msg } from '../constants/messages.js';
+
+// Cache for products to ensure fast response
+let productsCache = {
+  shehabi: [],
+  tempo: [],
+  merged: [],
+  lastUpdated: null,
+  cacheDuration: 5 * 60 * 1000, // 5 minutes
+};
+
+/**
+ * Get merged products from both Shehabi and Tempo
+ * Returns Shehabi products for target categories and Tempo products excluding duplicates
+ */
+export async function getMergedProducts({ includeProfits = false } = {}) {
+  const now = Date.now();
+  
+  // Return cached data if still valid
+  if (productsCache.lastUpdated && (now - productsCache.lastUpdated) < productsCache.cacheDuration) {
+    if (includeProfits) {
+      return await addProfitsToProducts(productsCache.merged);
+    }
+    return productsCache.merged;
+  }
+
+  // Fetch fresh data
+  const shehabiProvider = await ExternalProvider.findOne({
+    providerType: 'shehabi',
+    isActive: true,
+  });
+
+  const tempoProvider = await ExternalProvider.findOne({
+    providerType: 'tempo',
+    isActive: true,
+  });
+
+  if (!shehabiProvider || !tempoProvider) {
+    throw new Error(msg.PROVIDER_NOT_ACTIVE);
+  }
+
+  try {
+    // Fetch Shehabi products
+    const shehabiClient = createProviderClient(shehabiProvider);
+    const shehabiRawProducts = await shehabiClient.getProducts();
+    
+    // Filter and map Shehabi products (only target categories)
+    const shehabiProducts = shehabiRawProducts
+      .filter(isTargetShehabiProduct)
+      .map(mapShehabiProduct);
+
+    // Fetch Tempo products
+    const tempoClient = createProviderClient(tempoProvider);
+    const tempoRawProducts = await tempoClient.getProducts();
+
+    // Create a Set of Shehabi product IDs to exclude from Tempo
+    const shehabiProductIds = new Set(shehabiProducts.map(p => String(p.id)));
+
+    // Map Tempo products, excluding duplicates
+    const tempoProducts = tempoRawProducts
+      .filter(product => !shehabiProductIds.has(String(product.id)))
+      .map(product => ({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        category: product.category || product.gameName,
+        available: product.available !== false,
+        productType: product.type || 'package',
+        minQty: product.minCount || 1,
+        maxQty: product.maxCount || 1,
+        pricingType: product.minCount === 1 && product.maxCount === 1 ? 'fixed' : 'per_unit',
+        provider: 'tempo',
+      }));
+
+    // Merge products with provider source
+    const mergedProducts = [
+      ...shehabiProducts.map(p => ({ ...p, source: 'shehabi', providerId: shehabiProvider._id })),
+      ...tempoProducts.map(p => ({ ...p, source: 'tempo', providerId: tempoProvider._id })),
+    ];
+
+    // Update cache
+    productsCache = {
+      shehabi: shehabiProducts,
+      tempo: tempoProducts,
+      merged: mergedProducts,
+      lastUpdated: now,
+      cacheDuration: productsCache.cacheDuration,
+    };
+
+    if (includeProfits) {
+      return await addProfitsToProducts(mergedProducts);
+    }
+    return mergedProducts;
+  } catch (error) {
+    // If fetch fails, return stale cache if available
+    if (productsCache.merged.length > 0) {
+      console.warn('Failed to fetch fresh products, returning stale cache:', error.message);
+      if (includeProfits) {
+        return await addProfitsToProducts(productsCache.merged);
+      }
+      return productsCache.merged;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Add sell price information to products for all badges
+ * Returns provider-specific sell prices (USD for Tempo, SYP for Shehabi)
+ */
+async function addProfitsToProducts(products) {
+  const badges = await Badge.find({ isActive: true }).sort({ level: 1 });
+  
+  const productsWithProfits = await Promise.all(
+    products.map(async (product) => {
+      const sellPrices = {};
+      
+      for (const badge of badges) {
+        const profit = await ProductProfit.findOne({
+          externalProvider: product.providerId,
+          productId: String(product.id),
+          badge: badge._id,
+        });
+        
+        if (product.source === 'tempo') {
+          // Tempo uses sellPriceUSD
+          sellPrices[badge.name] = profit && profit.sellPriceUSD ? parseFloat(profit.sellPriceUSD.toString()) : 0;
+        } else {
+          // Shehabi uses sellPriceSYP
+          sellPrices[badge.name] = profit && profit.sellPriceSYP ? parseFloat(profit.sellPriceSYP.toString()) : 0;
+        }
+      }
+      
+      return {
+        ...product,
+        sellPrices,
+      };
+    })
+  );
+  
+  return productsWithProfits;
+}
+
+/**
+ * Clear the products cache (call this after provider updates)
+ */
+export function clearProductsCache() {
+  productsCache = {
+    shehabi: [],
+    tempo: [],
+    merged: [],
+    lastUpdated: null,
+    cacheDuration: productsCache.cacheDuration,
+  };
+}
+
+/**
+ * Get Shehabi products only (for target categories)
+ */
+export async function getShehabiProducts() {
+  const merged = await getMergedProducts();
+  return merged.filter(p => p.source === 'shehabi');
+}
+
+/**
+ * Get Tempo products only (excluding Shehabi duplicates)
+ */
+export async function getTempoProducts() {
+  const merged = await getMergedProducts();
+  return merged.filter(p => p.source === 'tempo');
+}

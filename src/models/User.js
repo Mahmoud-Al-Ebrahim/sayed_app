@@ -56,6 +56,13 @@ const userSchema = new mongoose.Schema(
       default: ROLES.CLIENT,
       index: true,
     },
+    /** Badge for profit margin calculation */
+    badge: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Badge',
+      default: null,
+      index: true,
+    },
     /** Balance in Syrian Pounds (SYP) — admin and agents */
     balance: {
       type: mongoose.Schema.Types.Decimal128,

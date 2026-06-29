@@ -5,6 +5,7 @@ import * as providerService from '../services/provider.service.js';
 import * as catalogService from '../services/catalog.service.js';
 import * as transactionService from '../services/transaction.service.js';
 import * as orderService from '../services/order.service.js';
+import * as badgeService from '../services/badge.service.js';
 import { User } from '../models/User.js';
 import { ProviderDeposit } from '../models/ProviderDeposit.js';
 import { ROLES, TRANSACTION_TYPES } from '../constants/index.js';
@@ -67,6 +68,32 @@ export async function withdrawFromAgent(req, res, next) {
       idempotencyKey: req.body.idempotencyKey,
     });
     res.status(201).json({ success: true, data: { transaction } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateAgentBadge(req, res, next) {
+  try {
+    const { badgeId } = req.body;
+    
+    if (!badgeId) {
+      return res.status(400).json({ success: false, message: 'Badge ID is required' });
+    }
+
+    const badge = await badgeService.getBadgeById(badgeId);
+    
+    const agent = await User.findByIdAndUpdate(
+      req.params.id,
+      { badge: badgeId },
+      { new: true, runValidators: true }
+    ).populate('badge');
+
+    if (!agent) {
+      return res.status(404).json({ success: false, message: msg.AGENT_NOT_FOUND });
+    }
+
+    res.json({ success: true, data: { agent } });
   } catch (err) {
     next(err);
   }
@@ -245,8 +272,9 @@ export async function listTransactions(req, res, next) {
 export async function listOrders(req, res, next) {
   try {
     const data = await orderService.listOrders({
-      performedBy: req.query.agentId,
+      performedBy: req.query.userId, // Admin can filter by any user (agent or client)
       status: req.query.status,
+      providerStatus: req.query.providerStatus,
       page: Number(req.query.page) || 1,
       limit: Number(req.query.limit) || 20,
     });

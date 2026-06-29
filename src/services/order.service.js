@@ -4,6 +4,7 @@ import { Order } from '../models/Order.js';
 import { Service } from '../models/Service.js';
 import { ExchangeRate } from '../models/ExchangeRate.js';
 import { ExternalProvider } from '../models/ExternalProvider.js';
+import { Badge } from '../models/Badge.js';
 import { ORDER_STATUS, TRANSACTION_TYPES, PROVIDER_TYPES } from '../constants/index.js';
 import { adjustUserBalance, adjustProviderBalance } from './ledger.service.js';
 import { createProviderClient } from '../providers/index.js';
@@ -12,6 +13,7 @@ import { calculateOrderAmounts } from '../utils/pricing.js';
 import { mapProviderStatus } from '../utils/orderStatus.js';
 import { toMoney } from '../utils/money.js';
 import { msg } from '../constants/messages.js';
+import { getSellPriceForOrder } from './productProfit.service.js';
 
 function validateCustomerInput(service, customerInput = {}) {
   for (const field of service.requiredFields || []) {
@@ -186,10 +188,24 @@ async function refundFailedOrder(order, performedById, reason) {
   order.failureReason = reason;
 }
 
-export async function listOrders({ performedBy, page = 1, limit = 20, status } = {}) {
+export async function listOrders({ performedBy, page = 1, limit = 20, status, providerStatus } = {}) {
   const filter = {};
+  // If performedBy is provided, filter by that user (for client/agent own orders or admin filtering by specific user)
+  // If performedBy is not provided, return all orders (for admin viewing all orders)
   if (performedBy) filter.performedBy = performedBy;
-  if (status) filter.status = status;
+  
+  // Handle provider status filtering (accept, reject, wait, all)
+  if (providerStatus && providerStatus !== 'all') {
+    const providerStatusMap = {
+      accept: ORDER_STATUS.COMPLETED,
+      reject: ORDER_STATUS.FAILED,
+      wait: ORDER_STATUS.PROCESSING,
+    };
+    filter.status = providerStatusMap[providerStatus];
+  } else if (status) {
+    // Use internal status if provided
+    filter.status = status;
+  }
 
   const skip = (page - 1) * limit;
   const [orders, total] = await Promise.all([
@@ -255,7 +271,7 @@ export async function placeOrderFromFrontend({
   productId, // External product ID from shehabi or tempo
   quantity = 1,
   customerInput = {},
-  price, // Price from frontend (in SYP for shehabi, USD for tempo)
+  price, // Base price from provider (in SYP for shehabi, USD for tempo)
   idempotencyKey = null,
 }) {
   if (!providerType || !productId) {
@@ -277,17 +293,39 @@ export async function placeOrderFromFrontend({
   }
 
   const exchangeRate = await ExchangeRate.getActiveRate();
-  
+
+  // Get user's badge (default to bronze if not set)
+  let userBadge = await Badge.findOne({ name: 'bronze' });
+  if (performedBy.badge) {
+    userBadge = await Badge.findById(performedBy.badge);
+  }
+  if (!userBadge) {
+    userBadge = await Badge.findOne({ name: 'bronze' });
+  }
+
+  // Get sell price for this product based on badge (provider-specific)
+  const sellPrice = await getSellPriceForOrder({
+    providerId: provider._id,
+    productId,
+    badgeId: userBadge._id,
+    providerType,
+  });
+
   // Calculate amounts based on provider type
-  let amountSYP, costUSD;
+  let amountSYP, costUSD, profitUSD;
   if (providerType === PROVIDER_TYPES.SHEHABI) {
-    // Shehabi prices are in SYP
-    amountSYP = price * quantity;
-    costUSD = amountSYP / exchangeRate.rate;
+    // Shehabi prices are in SYP (base price from provider, sell price in SYP)
+    const baseCostSYP = price * quantity;
+    const totalSellPriceSYP = sellPrice * quantity;
+    costUSD = baseCostSYP / exchangeRate.rate; // Provider cost in USD
+    amountSYP = totalSellPriceSYP; // Charge agent in SYP based on sell price
+    profitUSD = (totalSellPriceSYP - baseCostSYP) / exchangeRate.rate; // Profit in USD
   } else {
-    // Tempo prices are in USD
-    costUSD = price * quantity;
-    amountSYP = costUSD * exchangeRate.rate;
+    // Tempo prices are in USD (base price from provider, sell price in USD)
+    costUSD = price * quantity; // Provider cost in USD
+    const totalSellPriceUSD = sellPrice * quantity;
+    profitUSD = totalSellPriceUSD - costUSD; // Profit in USD
+    amountSYP = totalSellPriceUSD * exchangeRate.rate; // Charge agent in SYP based on sell price
   }
 
   const orderUuid = crypto.randomUUID();
@@ -306,6 +344,8 @@ export async function placeOrderFromFrontend({
             status: ORDER_STATUS.PROCESSING,
             amountSYP: toMoney(amountSYP),
             costUSD: toMoney(costUSD),
+            profitUSD: toMoney(profitUSD * quantity),
+            badge: userBadge._id,
             exchangeRateAtOrder: exchangeRate.rate,
             quantity,
             customerInput,

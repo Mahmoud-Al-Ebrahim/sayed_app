@@ -36,6 +36,7 @@ export async function listOrders(req, res, next) {
     const data = await orderService.listOrders({
       performedBy: req.user._id,
       status: req.query.status,
+      providerStatus: req.query.providerStatus,
       page: Number(req.query.page) || 1,
       limit: Number(req.query.limit) || 20,
     });

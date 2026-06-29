@@ -38,6 +38,9 @@ export const msg = {
   AGENT_NOT_FOUND: 'الوكيل غير موجود',
   AGENT_NOT_FOUND_OR_INACTIVE: 'الوكيل غير موجود أو غير نشط',
 
+  // الشارات
+  BADGE_NOT_FOUND: 'الشارة غير موجودة',
+
   // المزوّدون
   PROVIDER_NOT_FOUND: 'المزوّد غير موجود',
   PROVIDER_INVALID_TYPE: 'نوع المزوّد غير صالح',

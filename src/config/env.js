@@ -37,7 +37,7 @@ export const env = {
     },
     shehabi: {
       apiToken: process.env.SHEHABI_API_TOKEN,
-      baseUrl: process.env.SHEHABI_BASE_URL || 'https://alshhabi.com/api/fastapi',
+      baseUrl: process.env.SHEHABI_BASE_URL || 'https://api.alshahen-store.com',
     },
   },
 };

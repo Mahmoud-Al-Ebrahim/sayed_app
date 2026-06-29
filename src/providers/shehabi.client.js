@@ -2,7 +2,7 @@ import { providerFetch, ProviderError } from './base.client.js';
 import { msg } from '../constants/messages.js';
 import { resolveProviderMessage } from '../utils/resolveMessage.js';
 
-const baseUrl = 'https://alshhabi.com/api/fastapi';
+const baseUrl = 'https://api.alshahen-store.com';
 const apiToken = process.env.SHEHABI_API_TOKEN;
 
 export class ShehabiClient {
@@ -16,7 +16,7 @@ export class ShehabiClient {
   }
 
   async getProfile() {
-    const data = await providerFetch(`${baseUrl}/balance`, {
+    const data = await providerFetch(`${baseUrl}/client/api/profile`, {
       headers: this.headers(),
     });
 
@@ -33,30 +33,26 @@ export class ShehabiClient {
   }
 
   async getProducts() {
-    const data = await providerFetch(`${baseUrl}/products`, {
+    return providerFetch(`${baseUrl}/client/api/products`, {
       headers: this.headers(),
     });
-
-    if (data.error) {
-      throw new ProviderError(resolveProviderMessage(data.message, msg.SHEHABI_PRODUCTS_FAILED), { raw: data });
-    }
-
-    return data.data.products || [];
   }
 
   async createOrder({ productId, quantity, params = {}, orderUuid }) {
     const query = new URLSearchParams({
       qty: String(quantity),
+      order_uuid: orderUuid,
       ...params,
     });
     if (orderUuid) query.set('uuid', orderUuid);
 
     const data = await providerFetch(
-      `${baseUrl}/requestorder/${productId}/params?${query}`,
+      `${baseUrl}/client/api/newOrder/${productId}/params?${query}`,
       { headers: this.headers() }
     );
 
-    if (data.error && !data.data?.order_number) {
+    
+    if (data.status !== 'OK' || !data.data) {
       throw new ProviderError(resolveProviderMessage(data.message, msg.SHEHABI_ORDER_FAILED), { raw: data });
     }
 
@@ -64,8 +60,7 @@ export class ShehabiClient {
       orderId: data.data.order_number,
       status: data.data.status,
       actualCostUSD: parseFloat(data.data.amount),
-      notes: data.data.notes,
-      duplicate: Boolean(data.error && data.data?.order_number),
+      replay: data.data.replay_api,
       raw: data,
     };
   }
@@ -76,15 +71,17 @@ export class ShehabiClient {
       { headers: this.headers() }
     );
 
-    if (data.error) {
-      throw new ProviderError(resolveProviderMessage(data.message, msg.SHEHABI_CHECK_FAILED), { raw: data });
+        if (data.status !== 'OK') {
+      throw new ProviderError(msg.SHEHABI_CHECK_FAILED, { raw: data });
     }
-
-    return (data.data.orders || []).map((order) => ({
-      orderId: order.order_number,
+        return (data.data || []).map((order) => ({
+      orderId: order.order_id,
       status: order.status,
       priceUSD: parseFloat(order.price),
-      customerInput: order.gamer_data,
+      productName: order.product_name,
+      quantity: order.quantity,
+      customerInput: order.data,
+      replay: order.replay_api,
       createdAt: order.created_at,
       raw: order,
     }));

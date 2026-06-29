@@ -40,6 +40,18 @@ const orderSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    /** Profit amount (USD) based on agent badge */
+    profitUSD: {
+      type: mongoose.Schema.Types.Decimal128,
+      required: true,
+      default: () => mongoose.Types.Decimal128.fromString('0.00'),
+      min: 0,
+    },
+    /** Badge used for this order */
+    badge: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Badge',
+    },
     exchangeRateAtOrder: {
       type: Number,
       required: true,
@@ -86,6 +98,11 @@ const orderSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
       index: true,
+    },
+    /** Number of times the order status has been checked with the provider */
+    statusCheckAttempts: {
+      type: Number,
+      default: 0,
     },
   },
   {

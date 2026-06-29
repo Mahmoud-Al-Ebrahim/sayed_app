@@ -1,10 +1,12 @@
 import { User } from '../models/User.js';
 import { ExchangeRate } from '../models/ExchangeRate.js';
 import { ExternalProvider } from '../models/ExternalProvider.js';
+import { Badge } from '../models/Badge.js';
 import { ROLES, AUTH_PROVIDERS, PROVIDER_TYPES, PROVIDER_DEFAULT_CURRENCY } from '../constants/index.js';
 import { env } from '../config/env.js';
 import { encrypt } from '../utils/crypto.js';
 import * as adminController from '../controllers/admin.controller.js';
+import * as badgeService from '../services/badge.service.js';
 
 async function seedProvider({ name, providerType, apiToken, websiteUrl }) {
   if (!apiToken) return;
@@ -59,6 +61,9 @@ export async function seedAdminAndDefaults() {
       });
     }
   }
+
+  // Ensure default badges exist
+  await badgeService.ensureDefaultBadges();
 
   await seedProvider({
     name: 'Tempo',
