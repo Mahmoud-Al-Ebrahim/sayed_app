@@ -34,12 +34,16 @@ function mapTempoProduct(product) {
     externalServiceId: String(product.id),
     name: product.name,
     description: product.category_name || '',
+    category: product.category_name || '',
+    categoryImage: product.category_img || '',
+    parentId: String(product.parent_id || ''),
     costPriceUSD: toMoney(product.price ?? product.base_price ?? 0),
     pricingType,
     quantityRules,
     requiredFields,
     upstreamSnapshot: product,
     isActive: Boolean(product.available),
+    available: Boolean(product.available),
   };
 }
 
@@ -50,7 +54,9 @@ function mapShehabiProduct(product) {
     externalServiceId: String(product.id),
     name: product.name,
     description: product.gameName || product.note || '',
-    category: product.gameName || '',
+    category: product.gameName || product.category_name || '',
+    categoryImage: product.category_img || '',
+    parentId: String(product.parent_id || ''),
     costPriceUSD: toMoney(product.price ?? 0),
     pricingType: pricingKind === 'fixed' ? PRICING_TYPES.FIXED : PRICING_TYPES.PER_UNIT,
     quantityRules: {
@@ -60,6 +66,7 @@ function mapShehabiProduct(product) {
     requiredFields: mapShehabiRequiredFields(product),
     upstreamSnapshot: product,
     isActive: Boolean(product.isActive),
+    available: Boolean(product.isActive),
   };
 }
 
@@ -147,12 +154,15 @@ export async function syncProviderProducts(providerId, { marginPercent = 0 } = {
       service.name = mapped.name;
       service.description = mapped.description;
       service.category = mapped.category;
+      service.categoryImage = mapped.categoryImage;
+      service.parentId = mapped.parentId;
       service.costPriceUSD = mapped.costPriceUSD;
       service.pricingType = mapped.pricingType;
       service.quantityRules = mapped.quantityRules;
       service.requiredFields = mapped.requiredFields;
       service.upstreamSnapshot = mapped.upstreamSnapshot;
       service.isActive = mapped.isActive;
+      service.available = mapped.available;
       await service.save();
       results.updated += 1;
     } else {

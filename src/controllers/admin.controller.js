@@ -221,6 +221,7 @@ export async function listServices(req, res, next) {
   try {
     const services = await catalogService.listServices({
       providerId: req.query.providerId,
+      includeBadgePrices: req.query.includeBadgePrices === 'true',
     });
     res.json({ success: true, data: { services } });
   } catch (err) {

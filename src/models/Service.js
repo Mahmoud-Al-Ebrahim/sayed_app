@@ -80,11 +80,26 @@ const serviceSchema = new mongoose.Schema(
         ],
       },
     ],
-    /** تصنيف المنتج من Shehabi (مثل وحدات MTN) */
+    /** تصنيف المنتج من Provider (مثل وحدات MTN, 8Ball Pool Coins) */
     category: {
       type: String,
       trim: true,
       index: true,
+    },
+    /** صورة التصنيف من Provider */
+    categoryImage: {
+      type: String,
+      trim: true,
+    },
+    /** معرف التصنيف الأب (للتصنيفات الهرمية) */
+    parentId: {
+      type: String,
+      trim: true,
+    },
+    /** هل المنتج متاح من Provider */
+    available: {
+      type: Boolean,
+      default: true,
     },
     sortOrder: {
       type: Number,

@@ -1,15 +1,65 @@
 import { Service } from '../models/Service.js';
+import { ProductProfit } from '../models/ProductProfit.js';
+import { Badge } from '../models/Badge.js';
 import { msg } from '../constants/messages.js';
 import { toMoney } from '../utils/money.js';
 
-export async function listServices({ activeOnly = false, providerId } = {}) {
+export async function listServices({ activeOnly = false, providerId, includeBadgePrices = false } = {}) {
   const filter = {};
   if (activeOnly) filter.isActive = true;
   if (providerId) filter.externalProvider = providerId;
 
-  return Service.find(filter)
+  const services = await Service.find(filter)
     .populate('externalProvider', 'name providerType isActive')
     .sort({ sortOrder: 1, name: 1 });
+
+  if (!includeBadgePrices) {
+    return services;
+  }
+
+  // Get all active badges
+  const badges = await Badge.find({ isActive: true }).sort({ level: 1 });
+
+  // Get all product profits for these services
+  const serviceIds = services.map(s => s._id);
+  const productProfits = await ProductProfit.find({
+    externalProvider: { $in: services.map(s => s.externalProvider) },
+    productId: { $in: services.map(s => s.externalServiceId) },
+    badge: { $in: badges.map(b => b._id) },
+  }).populate('badge', 'name displayName level');
+
+  // Group profits by service
+  const profitsByService = {};
+  for (const profit of productProfits) {
+    const key = `${profit.externalProvider}_${profit.productId}`;
+    if (!profitsByService[key]) {
+      profitsByService[key] = [];
+    }
+    profitsByService[key].push(profit);
+  }
+
+  // Attach badge prices to each service
+  return services.map(service => {
+    const serviceObj = service.toObject();
+    const key = `${service.externalProvider}_${service.externalServiceId}`;
+    const profits = profitsByService[key] || [];
+
+    // Create badge prices array
+    const badgePrices = badges.map(badge => {
+      const profit = profits.find(p => p.badge._id.toString() === badge._id.toString());
+      return {
+        badgeId: badge._id,
+        badgeName: badge.displayName,
+        badgeLevel: badge.level,
+        sellPriceSYP: profit?.sellPriceSYP || null,
+        sellPriceUSD: profit?.sellPriceUSD || null,
+        profitId: profit?.id || null,
+      };
+    });
+
+    serviceObj.badgePrices = badgePrices;
+    return serviceObj;
+  });
 }
 
 export async function getServiceById(id) {
