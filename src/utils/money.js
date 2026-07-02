@@ -6,7 +6,7 @@ const { Decimal128 } = mongoose.Types;
 /** Parse user/API input into a non-negative Decimal128 (2 decimal places). */
 export function toMoney(value) {
   const num = Number(value);
-  if (!Number.isFinite(num) || num < 0) {
+  if (!Number.isFinite(num)) {
     throw new Error(msg.INVALID_MONEY);
   }
   return Decimal128.fromString(num.toFixed(2));
