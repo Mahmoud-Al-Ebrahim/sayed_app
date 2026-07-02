@@ -25,9 +25,9 @@ export class ShehabiClient {
     }
 
     return {
-      balance: parseFloat(data.data.balance),
-      balanceUSD: parseFloat(data.data.balance),
-      name: data.data.name,
+      balance: parseFloat(data.balance),
+      balanceUSD: parseFloat(data.balance),
+      name: data.name,
       raw: data,
     };
   }
