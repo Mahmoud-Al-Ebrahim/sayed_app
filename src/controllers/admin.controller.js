@@ -6,6 +6,7 @@ import * as catalogService from '../services/catalog.service.js';
 import * as transactionService from '../services/transaction.service.js';
 import * as orderService from '../services/order.service.js';
 import * as badgeService from '../services/badge.service.js';
+import { getMergedProducts } from '../services/mergedProducts.service.js';
 import { User } from '../models/User.js';
 import { ProviderDeposit } from '../models/ProviderDeposit.js';
 import { ROLES, TRANSACTION_TYPES } from '../constants/index.js';
@@ -219,11 +220,9 @@ export async function syncProviderProducts(req, res, next) {
 
 export async function listServices(req, res, next) {
   try {
-    const services = await catalogService.listServices({
-      providerId: req.query.providerId,
-      includeBadgePrices: req.query.includeBadgePrices === 'true',
-    });
-    res.json({ success: true, data: { services } });
+    const includeProfits = req.query.includeProfits === 'true';
+    const products = await getMergedProducts({ includeProfits });
+    res.json({ success: true, data: { products } });
   } catch (err) {
     next(err);
   }

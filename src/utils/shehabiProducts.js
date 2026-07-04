@@ -57,6 +57,7 @@ export function mapShehabiProduct(product) {
   let maxQty = 1;
   let pricingType = 'fixed';
   let allowedValues = null;
+  let quantityRules = null;
 
   if (qtyValues) {
     if (Array.isArray(qtyValues)) {
@@ -66,6 +67,10 @@ export function mapShehabiProduct(product) {
     } else {
       minQty = Number(qtyValues.min) || 1;
       maxQty = Number(qtyValues.max) || 1;
+      quantityRules = {
+        min: minQty,
+        max: maxQty,
+      };
       if (minQty !== 1 || maxQty !== 1) {
         pricingType = product.product_type === 'amount' ? 'per_unit' : 'fixed';
       }
@@ -76,13 +81,14 @@ export function mapShehabiProduct(product) {
     id: product.id,
     name: product.name,
     price: product.price,
-    category: product.category_name,
-    available: product.available,
-    productType: product.product_type,
-    parentId: product.parent_id,
     basePrice: product.base_price,
-    categoryImg: product.category_img,
+    category: product.category_name,
+    categoryImage: product.category_img,
+    parentId: product.parent_id,
+    available: product.available !== false,
+    productType: product.product_type,
     params: product.params || [],
+    quantityRules,
     minQty,
     maxQty,
     pricingType,

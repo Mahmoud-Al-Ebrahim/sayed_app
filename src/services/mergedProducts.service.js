@@ -11,7 +11,7 @@ let productsCache = {
   tempo: [],
   merged: [],
   lastUpdated: null,
-  cacheDuration: 5 * 60 * 1000, // 5 minutes
+  cacheDuration: 60 * 60 * 1000, // 1 hour
 };
 
 /**
@@ -64,18 +64,31 @@ export async function getMergedProducts({ includeProfits = false } = {}) {
     // Map Tempo products, excluding duplicates
     const tempoProducts = tempoRawProducts
       .filter(product => !shehabiProductIds.has(String(product.id)))
-      .map(product => ({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        category: product.category || product.gameName,
-        available: product.available !== false,
-        productType: product.type || 'package',
-        minQty: product.minCount || 1,
-        maxQty: product.maxCount || 1,
-        pricingType: product.minCount === 1 && product.maxCount === 1 ? 'fixed' : 'per_unit',
-        provider: 'tempo',
-      }));
+      .map(product => {
+        const pricingType = product.product_type === 'amount' ? 'per_unit' : 'fixed';
+        let quantityRules = product.qty_values;
+        if (quantityRules && typeof quantityRules === 'object' && !Array.isArray(quantityRules)) {
+          quantityRules = {
+            min: Number(quantityRules.min ?? 1),
+            max: Number(quantityRules.max ?? quantityRules.min ?? 1),
+          };
+        }
+        return {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          basePrice: product.base_price,
+          category: product.category_name,
+          categoryImage: product.category_img,
+          parentId: product.parent_id,
+          available: product.available !== false,
+          productType: product.product_type || 'package',
+          params: product.params || [],
+          quantityRules,
+          pricingType,
+          provider: 'tempo',
+        };
+      });
 
     // Merge products with provider source
     const mergedProducts = [

@@ -3,6 +3,7 @@ import * as catalogService from '../services/catalog.service.js';
 import * as orderService from '../services/order.service.js';
 import * as transactionService from '../services/transaction.service.js';
 import * as exchangeRateService from '../services/exchangeRate.service.js';
+import { getMergedProducts } from '../services/mergedProducts.service.js';
 import { User } from '../models/User.js';
 import { ROLES, TRANSACTION_TYPES } from '../constants/index.js';
 import { adjustUserBalance } from '../services/ledger.service.js';
@@ -37,8 +38,9 @@ export async function listBalanceRequests(req, res, next) {
 
 export async function listServices(req, res, next) {
   try {
-    const services = await catalogService.listServices({ activeOnly: true });
-    res.json({ success: true, data: { services } });
+    const includeProfits = req.query.includeProfits === 'true';
+    const products = await getMergedProducts({ includeProfits });
+    res.json({ success: true, data: { products } });
   } catch (err) {
     next(err);
   }
