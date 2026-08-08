@@ -56,14 +56,14 @@ Content-Type: application/json
 
 ## Endpoints
 
-### Agent Management
+### Agent Collection Management
 
 #### List Agents
 
-Retrieve a list of all agents.
+Retrieve a list of all agents in the agent collection.
 
 ```http
-GET /admin/agents
+GET /admin/agent-collection
 Authorization: Bearer <access_token>
 ```
 
@@ -73,69 +73,7 @@ Authorization: Bearer <access_token>
 |-----------|------|-------------|---------|
 | `page` | number | Page number | 1 |
 | `limit` | number | Items per page | 20 |
-| `isActive` | boolean | Filter by active status | - |
-| `search` | string | Search in name/email | - |
-| `sortBy` | string | Sort field (name, email, balance, createdAt) | createdAt |
-| `sortOrder` | string | Sort order (asc, desc) | desc |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "agent_id",
-      "integerId": 1001,
-      "email": "agent@example.com",
-      "name": "Agent Name",
-      "role": "agent",
-      "badge": {
-        "id": "badge_id",
-        "name": "bronze",
-        "displayName": "Bronze"
-      },
-      "balance": 150000.00,
-      "balanceVersion": 5,
-      "isActive": true,
-      "lastLoginAt": "2024-01-15T10:30:00.000Z",
-      "createdAt": "2024-01-01T00:00:00.000Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 50,
-    "totalPages": 3
-  }
-}
-```
-
-#### Create Agent
-
-Create a new agent account.
-
-```http
-POST /admin/agents
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "email": "newagent@example.com",
-  "password": "SecurePass123!",
-  "name": "New Agent",
-  "badgeId": "badge_id"
-}
-```
-
-**Request Body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `email` | string | Yes | Agent email address |
-| `password` | string | Yes | Password (min 8 characters) |
-| `name` | string | Yes | Agent full name |
-| `badgeId` | string | No | Badge ID for profit margin |
+| `search` | string | Search in name/phone | - |
 
 **Response:**
 
@@ -143,20 +81,96 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "id": "agent_id",
-    "integerId": 1002,
-    "email": "newagent@example.com",
-    "name": "New Agent",
-    "role": "agent",
-    "badge": {
-      "id": "badge_id",
-      "name": "bronze",
-      "displayName": "Bronze"
-    },
-    "balance": 0.00,
-    "balanceVersion": 0,
-    "isActive": true,
-    "createdAt": "2024-01-15T10:30:00.000Z"
+    "agents": [
+      {
+        "id": "agent_id",
+        "name": "Agent Name",
+        "address": "123 Main St",
+        "phone": "0944123456",
+        "clientIntegerId": 2001,
+        "createdAt": "2024-01-15T10:30:00.000Z"
+      }
+    ],
+    "total": 10,
+    "page": 1,
+    "limit": 20
+  }
+}
+```
+
+#### Create Agent
+
+Create a new agent in the agent collection.
+
+```http
+POST /admin/agent-collection
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "name": "Agent Name",
+  "address": "123 Main St",
+  "phone": "0944123456",
+  "clientIntegerId": 2001
+}
+```
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Agent full name |
+| `address` | string | Yes | Agent address |
+| `phone` | string | Yes | Agent phone number |
+| `clientIntegerId` | number | Yes | Unique integer ID of existing client |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "agent": {
+      "id": "agent_id",
+      "name": "Agent Name",
+      "address": "123 Main St",
+      "phone": "0944123456",
+      "clientIntegerId": 2001,
+      "createdAt": "2024-01-15T10:30:00.000Z"
+    }
+  }
+}
+```
+
+#### Get Agent
+
+Retrieve a specific agent by ID.
+
+```http
+GET /admin/agent-collection/:id
+Authorization: Bearer <access_token>
+```
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | string | Agent ID |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "agent": {
+      "id": "agent_id",
+      "name": "Agent Name",
+      "address": "123 Main St",
+      "phone": "0944123456",
+      "clientIntegerId": 2001,
+      "createdAt": "2024-01-15T10:30:00.000Z"
+    }
   }
 }
 ```
@@ -166,13 +180,14 @@ Content-Type: application/json
 Update agent details.
 
 ```http
-PATCH /admin/agents/:id
+PATCH /admin/agent-collection/:id
 Authorization: Bearer <access_token>
 Content-Type: application/json
 
 {
   "name": "Updated Name",
-  "isActive": true
+  "address": "456 New St",
+  "phone": "0944987654"
 }
 ```
 
@@ -187,7 +202,9 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | string | No | Updated name |
-| `isActive` | boolean | No | Active status |
+| `address` | string | No | Updated address |
+| `phone` | string | No | Updated phone |
+| `clientIntegerId` | number | No | Updated client integer ID |
 
 **Response:**
 
@@ -195,93 +212,25 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "id": "agent_id",
-    "integerId": 1001,
-    "email": "agent@example.com",
-    "name": "Updated Name",
-    "role": "agent",
-    "badge": {
-      "id": "badge_id",
-      "name": "bronze",
-      "displayName": "Bronze"
-    },
-    "balance": 150000.00,
-    "isActive": true,
-    "updatedAt": "2024-01-15T10:35:00.000Z"
-  }
-}
-```
-
-#### Deposit to Agent
-
-Deposit funds to an agent's balance.
-
-```http
-POST /admin/agents/:id/deposit
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "amount": 50000,
-  "description": "Weekly balance top-up"
-}
-```
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | string | Agent ID |
-
-**Request Body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `amount` | number | Yes | Amount to deposit (SYP) |
-| `description` | string | No | Description of deposit |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "transaction_id",
-    "type": "agent_deposit",
-    "currency": "SYP",
-    "amount": 50000.00,
-    "user": {
+    "agent": {
       "id": "agent_id",
-      "name": "Agent Name",
-      "email": "agent@example.com"
-    },
-    "performedBy": {
-      "id": "admin_id",
-      "name": "Admin",
-      "email": "admin@sayed.com"
-    },
-    "balanceBefore": 150000.00,
-    "balanceAfter": 200000.00,
-    "description": "Weekly balance top-up",
-    "status": "completed",
-    "createdAt": "2024-01-15T10:30:00.000Z"
+      "name": "Updated Name",
+      "address": "456 New St",
+      "phone": "0944987654",
+      "clientIntegerId": 2001,
+      "updatedAt": "2024-01-15T10:35:00.000Z"
+    }
   }
 }
 ```
 
-#### Withdraw from Agent
+#### Delete Agent
 
-Withdraw funds from an agent's balance.
+Delete an agent from the collection.
 
 ```http
-POST /admin/agents/:id/withdraw
+DELETE /admin/agent-collection/:id
 Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "amount": 10000,
-  "description": "Balance correction"
-}
 ```
 
 **Path Parameters:**
@@ -290,82 +239,16 @@ Content-Type: application/json
 |-----------|------|-------------|
 | `id` | string | Agent ID |
 
-**Request Body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `amount` | number | Yes | Amount to withdraw (SYP) |
-| `description` | string | No | Description of withdrawal |
-
 **Response:**
 
 ```json
 {
   "success": true,
   "data": {
-    "id": "transaction_id",
-    "type": "agent_withdraw",
-    "currency": "SYP",
-    "amount": 10000.00,
-    "user": {
+    "agent": {
       "id": "agent_id",
-      "name": "Agent Name",
-      "email": "agent@example.com"
-    },
-    "performedBy": {
-      "id": "admin_id",
-      "name": "Admin",
-      "email": "admin@sayed.com"
-    },
-    "balanceBefore": 150000.00,
-    "balanceAfter": 140000.00,
-    "description": "Balance correction",
-    "status": "completed",
-    "createdAt": "2024-01-15T10:30:00.000Z"
-  }
-}
-```
-
-#### Update Agent Badge
-
-Update an agent's badge (affects profit margins).
-
-```http
-PATCH /admin/agents/:id/badge
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "badgeId": "new_badge_id"
-}
-```
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | string | Agent ID |
-
-**Request Body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `badgeId` | string | Yes | New badge ID |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "agent_id",
-    "name": "Agent Name",
-    "badge": {
-      "id": "new_badge_id",
-      "name": "silver",
-      "displayName": "Silver"
-    },
-    "updatedAt": "2024-01-15T10:35:00.000Z"
+      "name": "Agent Name"
+    }
   }
 }
 ```
@@ -374,7 +257,7 @@ Content-Type: application/json
 
 #### List Clients
 
-Retrieve a list of all clients.
+Retrieve a list of all clients with search functionality.
 
 ```http
 GET /admin/clients
@@ -387,53 +270,7 @@ Authorization: Bearer <access_token>
 |-----------|------|-------------|---------|
 | `page` | number | Page number | 1 |
 | `limit` | number | Items per page | 20 |
-| `isActive` | boolean | Filter by active status | - |
-| `search` | string | Search in name/email | - |
-| `sortBy` | string | Sort field (name, email, balance, createdAt) | createdAt |
-| `sortOrder` | string | Sort order (asc, desc) | desc |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "client_id",
-      "integerId": 2001,
-      "email": "client@example.com",
-      "name": "Client Name",
-      "role": "client",
-      "balance": 50000.00,
-      "balanceVersion": 2,
-      "isActive": true,
-      "lastLoginAt": "2024-01-15T10:30:00.000Z",
-      "createdAt": "2024-01-01T00:00:00.000Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 100,
-    "totalPages": 5
-  }
-}
-```
-
-#### Upgrade Client to Agent
-
-Upgrade a client account to agent role.
-
-```http
-PATCH /admin/clients/:id/upgrade
-Authorization: Bearer <access_token>
-```
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | string | Client ID |
+| `search` | string | Search by name, email, or integer ID | - |
 
 **Response:**
 
@@ -441,16 +278,203 @@ Authorization: Bearer <access_token>
 {
   "success": true,
   "data": {
-    "id": "client_id",
-    "email": "client@example.com",
-    "name": "Client Name",
-    "role": "agent",
-    "badge": {
-      "id": "badge_id",
-      "name": "bronze",
-      "displayName": "Bronze"
-    },
-    "updatedAt": "2024-01-15T10:35:00.000Z"
+    "clients": [
+      {
+        "id": "client_id",
+        "integerId": 2001,
+        "email": "client@example.com",
+        "name": "Client Name",
+        "role": "client",
+        "balance": 50000.00,
+        "balanceVersion": 2,
+        "isActive": true,
+        "isBlocked": false,
+        "lastLoginAt": "2024-01-15T10:30:00.000Z",
+        "createdAt": "2024-01-01T00:00:00.000Z"
+      }
+    ],
+    "total": 100,
+    "page": 1,
+    "limit": 20
+  }
+}
+```
+
+#### Get Client by Integer ID
+
+Retrieve a specific client by their unique integer ID.
+
+```http
+GET /admin/clients/:integerId
+Authorization: Bearer <access_token>
+```
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `integerId` | number | Client's unique integer ID |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "client": {
+      "id": "client_id",
+      "integerId": 2001,
+      "email": "client@example.com",
+      "name": "Client Name",
+      "role": "client",
+      "balance": 50000.00,
+      "isActive": true,
+      "isBlocked": false
+    }
+  }
+}
+```
+
+#### Update Client Password
+
+Update a client's password using their integer ID.
+
+```http
+PATCH /admin/clients/:integerId/password
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "password": "NewSecurePass123!"
+}
+```
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `integerId` | number | Client's unique integer ID |
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `password` | string | Yes | New password (min 8 characters) |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Password updated successfully"
+  }
+}
+```
+
+#### Block Client
+
+Block a client so they cannot use any API or access their data.
+
+```http
+PATCH /admin/clients/:integerId/block
+Authorization: Bearer <access_token>
+```
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `integerId` | number | Client's unique integer ID |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Client blocked successfully"
+  }
+}
+```
+
+#### Unblock Client
+
+Unblock a client to restore their API access.
+
+```http
+PATCH /admin/clients/:integerId/unblock
+Authorization: Bearer <access_token>
+```
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `integerId` | number | Client's unique integer ID |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Client unblocked successfully"
+  }
+}
+```
+
+#### Get Client Transactions
+
+View a client's transactions using their integer ID.
+
+```http
+GET /admin/clients/:integerId/transactions
+Authorization: Bearer <access_token>
+```
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `integerId` | number | Client's unique integer ID |
+
+**Query Parameters:**
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `page` | number | Page number | 1 |
+| `limit` | number | Items per page | 30 |
+| `type` | string | Filter by transaction type | - |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "transactions": [
+      {
+        "id": "transaction_id",
+        "type": "client_deposit",
+        "currency": "SYP",
+        "amount": 10000.00,
+        "user": {
+          "id": "client_id",
+          "name": "Client Name"
+        },
+        "balanceBefore": 50000.00,
+        "balanceAfter": 60000.00,
+        "status": "completed",
+        "createdAt": "2024-01-15T10:30:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 30,
+      "total": 50,
+      "totalPages": 2
+    }
   }
 }
 ```
@@ -466,7 +490,7 @@ Content-Type: application/json
 
 {
   "amount": 10000,
-  "description": "Customer deposit"
+  "note": "Customer deposit"
 }
 ```
 
@@ -481,7 +505,7 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `amount` | number | Yes | Amount to deposit (SYP) |
-| `description` | string | No | Description of deposit |
+| `note` | string | No | Description of deposit |
 
 **Response:**
 
@@ -489,25 +513,15 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "id": "transaction_id",
-    "type": "client_deposit",
-    "currency": "SYP",
-    "amount": 10000.00,
-    "user": {
-      "id": "client_id",
-      "name": "Client Name",
-      "email": "client@example.com"
-    },
-    "performedBy": {
-      "id": "admin_id",
-      "name": "Admin",
-      "email": "admin@sayed.com"
-    },
-    "balanceBefore": 50000.00,
-    "balanceAfter": 60000.00,
-    "description": "Customer deposit",
-    "status": "completed",
-    "createdAt": "2024-01-15T10:30:00.000Z"
+    "transaction": {
+      "id": "transaction_id",
+      "type": "client_deposit",
+      "currency": "SYP",
+      "amount": 10000.00,
+      "balanceBefore": 50000.00,
+      "balanceAfter": 60000.00,
+      "status": "completed"
+    }
   }
 }
 ```
@@ -523,7 +537,7 @@ Content-Type: application/json
 
 {
   "amount": 5000,
-  "description": "Refund processing"
+  "note": "Refund processing"
 }
 ```
 
@@ -538,7 +552,7 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `amount` | number | Yes | Amount to withdraw (SYP) |
-| `description` | string | No | Description of withdrawal |
+| `note` | string | No | Description of withdrawal |
 
 **Response:**
 
@@ -546,158 +560,15 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "id": "transaction_id",
-    "type": "client_withdraw",
-    "currency": "SYP",
-    "amount": 5000.00,
-    "user": {
-      "id": "client_id",
-      "name": "Client Name",
-      "email": "client@example.com"
-    },
-    "performedBy": {
-      "id": "admin_id",
-      "name": "Admin",
-      "email": "admin@sayed.com"
-    },
-    "balanceBefore": 60000.00,
-    "balanceAfter": 55000.00,
-    "description": "Refund processing",
-    "status": "completed",
-    "createdAt": "2024-01-15T10:30:00.000Z"
-  }
-}
-```
-
-### Balance Request Management
-
-#### List Balance Requests
-
-Retrieve all balance requests from agents.
-
-```http
-GET /admin/balance-requests
-Authorization: Bearer <access_token>
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `page` | number | Page number | 1 |
-| `limit` | number | Items per page | 20 |
-| `status` | string | Filter by status (pending, approved, rejected) | - |
-| `agentId` | string | Filter by agent | - |
-| `sortBy` | string | Sort field (createdAt, amount) | createdAt |
-| `sortOrder` | string | Sort order (asc, desc) | desc |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "request_id",
-      "agent": {
-        "id": "agent_id",
-        "name": "Agent Name",
-        "email": "agent@example.com",
-        "integerId": 1001
-      },
-      "amount": 50000.00,
-      "status": "pending",
-      "description": "Need balance for weekend orders",
-      "approvedBy": null,
-      "approvedAt": null,
-      "rejectionReason": null,
-      "createdAt": "2024-01-15T10:30:00.000Z",
-      "updatedAt": "2024-01-15T10:30:00.000Z"
+    "transaction": {
+      "id": "transaction_id",
+      "type": "client_withdraw",
+      "currency": "SYP",
+      "amount": 5000.00,
+      "balanceBefore": 60000.00,
+      "balanceAfter": 55000.00,
+      "status": "completed"
     }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 10,
-    "totalPages": 1
-  }
-}
-```
-
-#### Approve Balance Request
-
-Approve a pending balance request.
-
-```http
-POST /admin/balance-requests/:id/approve
-Authorization: Bearer <access_token>
-```
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | string | Balance request ID |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "request_id",
-    "status": "approved",
-    "approvedBy": {
-      "id": "admin_id",
-      "name": "Admin"
-    },
-    "approvedAt": "2024-01-15T10:35:00.000Z",
-    "updatedAt": "2024-01-15T10:35:00.000Z"
-  }
-}
-```
-
-#### Reject Balance Request
-
-Reject a pending balance request.
-
-```http
-POST /admin/balance-requests/:id/reject
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "reason": "Insufficient funds available"
-}
-```
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | string | Balance request ID |
-
-**Request Body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `reason` | string | Yes | Rejection reason |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "request_id",
-    "status": "rejected",
-    "rejectionReason": "Insufficient funds available",
-    "approvedBy": {
-      "id": "admin_id",
-      "name": "Admin"
-    },
-    "approvedAt": "2024-01-15T10:35:00.000Z",
-    "updatedAt": "2024-01-15T10:35:00.000Z"
   }
 }
 ```
@@ -719,11 +590,12 @@ Authorization: Bearer <access_token>
 {
   "success": true,
   "data": {
-    "id": "rate_id",
-    "rate": 10600.00,
-    "isActive": true,
-    "effectiveDate": "2024-01-15T00:00:00.000Z",
-    "createdAt": "2024-01-15T00:00:00.000Z"
+    "rate": {
+      "id": "rate_id",
+      "rate": 10600.00,
+      "isActive": true,
+      "effectiveDate": "2024-01-15T00:00:00.000Z"
+    }
   }
 }
 ```
@@ -756,11 +628,12 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "id": "rate_id",
-    "rate": 10800.00,
-    "isActive": true,
-    "effectiveDate": "2024-01-16T00:00:00.000Z",
-    "createdAt": "2024-01-15T10:30:00.000Z"
+    "rate": {
+      "id": "rate_id",
+      "rate": 10800.00,
+      "isActive": true,
+      "effectiveDate": "2024-01-16T00:00:00.000Z"
+    }
   }
 }
 ```
@@ -774,35 +647,20 @@ GET /admin/exchange-rates
 Authorization: Bearer <access_token>
 ```
 
-**Query Parameters:**
-
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `page` | number | Page number | 1 |
-| `limit` | number | Items per page | 20 |
-| `isActive` | boolean | Filter by active status | - |
-| `sortBy` | string | Sort field (effectiveDate, rate) | effectiveDate |
-| `sortOrder` | string | Sort order (asc, desc) | desc |
-
 **Response:**
 
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": "rate_id",
-      "rate": 10800.00,
-      "isActive": true,
-      "effectiveDate": "2024-01-16T00:00:00.000Z",
-      "createdAt": "2024-01-15T10:30:00.000Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 10,
-    "totalPages": 1
+  "data": {
+    "rates": [
+      {
+        "id": "rate_id",
+        "rate": 10800.00,
+        "isActive": true,
+        "effectiveDate": "2024-01-16T00:00:00.000Z"
+      }
+    ]
   }
 }
 ```
@@ -832,26 +690,18 @@ Authorization: Bearer <access_token>
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": "provider_id",
-      "name": "Shehabi",
-      "providerType": "shehabi",
-      "websiteUrl": "https://api.alshahen-store.com/",
-      "balanceCurrency": "SYP",
-      "balanceSYP": 5000000.00,
-      "balanceUSD": 0.00,
-      "isActive": true,
-      "lastSyncedAt": "2024-01-15T10:30:00.000Z",
-      "notes": "Primary provider for MTN/Syriatel",
-      "createdAt": "2024-01-01T00:00:00.000Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 2,
-    "totalPages": 1
+  "data": {
+    "providers": [
+      {
+        "id": "provider_id",
+        "name": "Shehabi",
+        "providerType": "shehabi",
+        "websiteUrl": "https://api.alshahen-store.com/",
+        "balanceCurrency": "SYP",
+        "balanceSYP": 5000000.00,
+        "isActive": true
+      }
+    ]
   }
 }
 ```
@@ -890,15 +740,13 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "id": "provider_id",
-    "name": "New Provider",
-    "providerType": "tempo",
-    "websiteUrl": "https://example.com",
-    "balanceCurrency": "USD",
-    "balanceUSD": 0.00,
-    "isActive": true,
-    "notes": "Additional provider",
-    "createdAt": "2024-01-15T10:30:00.000Z"
+    "provider": {
+      "id": "provider_id",
+      "name": "New Provider",
+      "providerType": "tempo",
+      "websiteUrl": "https://example.com",
+      "isActive": true
+    }
   }
 }
 ```
@@ -941,13 +789,12 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "id": "provider_id",
-    "name": "Updated Name",
-    "providerType": "tempo",
-    "websiteUrl": "https://example.com",
-    "isActive": true,
-    "notes": "Additional provider",
-    "updatedAt": "2024-01-15T10:35:00.000Z"
+    "provider": {
+      "id": "provider_id",
+      "name": "Updated Name",
+      "providerType": "tempo",
+      "isActive": true
+    }
   }
 }
 ```
@@ -973,11 +820,12 @@ Authorization: Bearer <access_token>
 {
   "success": true,
   "data": {
-    "id": "provider_id",
-    "name": "Shehabi",
-    "balanceSYP": 5200000.00,
-    "balanceUSD": 0.00,
-    "lastSyncedAt": "2024-01-15T10:35:00.000Z"
+    "provider": {
+      "id": "provider_id",
+      "name": "Shehabi",
+      "balanceSYP": 5200000.00,
+      "lastSyncedAt": "2024-01-15T10:35:00.000Z"
+    }
   }
 }
 ```
@@ -1016,17 +864,7 @@ Content-Type: application/json
   "data": {
     "created": 50,
     "updated": 20,
-    "skipped": 30,
-    "items": [
-      {
-        "id": "service_id",
-        "name": "MTN 100 Units",
-        "externalServiceId": "5120",
-        "costPriceUSD": 100.00,
-        "sellingPriceSYP": 10600.00,
-        "isActive": true
-      }
-    ]
+    "skipped": 30
   }
 }
 ```
@@ -1052,51 +890,27 @@ Authorization: Bearer <access_token>
 | `category` | string | Filter by category | - |
 | `isActive` | boolean | Filter by active status | - |
 | `search` | string | Search in name/description | - |
-| `sortBy` | string | Sort field (name, price, sortOrder) | sortOrder |
-| `sortOrder` | string | Sort order (asc, desc) | asc |
 
 **Response:**
 
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": "service_id",
-      "name": "MTN 100 Units",
-      "description": "Mobile top-up service",
-      "externalProvider": {
-        "id": "provider_id",
-        "name": "Shehabi",
-        "providerType": "shehabi"
-      },
-      "externalServiceId": "5120",
-      "costPriceUSD": 100.00,
-      "sellingPriceSYP": 10600.00,
-      "pricingType": "fixed",
-      "quantityRules": {
-        "min": 1,
-        "max": 1
-      },
-      "requiredFields": [
-        {
-          "key": "phone",
-          "label": "أدخل الرقم بدون النداء",
-          "type": "phone",
-          "required": true
-        }
-      ],
-      "category": "وحدات ام تي ان",
-      "isActive": true,
-      "sortOrder": 0,
-      "createdAt": "2024-01-01T00:00:00.000Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 50,
-    "total": 150,
-    "totalPages": 3
+  "data": {
+    "products": [
+      {
+        "id": "service_id",
+        "name": "MTN 100 Units",
+        "description": "Mobile top-up service",
+        "externalProvider": {
+          "id": "provider_id",
+          "name": "Shehabi"
+        },
+        "costPriceUSD": 100.00,
+        "sellingPriceSYP": 10600.00,
+        "isActive": true
+      }
+    ]
   }
 }
 ```
@@ -1116,22 +930,7 @@ Content-Type: application/json
   "externalProviderId": "provider_id",
   "externalServiceId": "custom-123",
   "costPriceUSD": 50.00,
-  "sellingPriceSYP": 53000.00,
-  "pricingType": "fixed",
-  "quantityRules": {
-    "min": 1,
-    "max": 10
-  },
-  "requiredFields": [
-    {
-      "key": "phone",
-      "label": "Phone Number",
-      "type": "phone",
-      "required": true
-    }
-  ],
-  "category": "custom",
-  "isActive": true
+  "sellingPriceSYP": 53000.00
 }
 ```
 
@@ -1145,11 +944,6 @@ Content-Type: application/json
 | `externalServiceId` | string | Yes | External service ID |
 | `costPriceUSD` | number | Yes | Cost in USD |
 | `sellingPriceSYP` | number | Yes | Selling price in SYP |
-| `pricingType` | string | No | Pricing type (fixed, per_unit) |
-| `quantityRules` | object | No | Quantity rules (min, max) |
-| `requiredFields` | array | No | Required customer fields |
-| `category` | string | No | Service category |
-| `isActive` | boolean | No | Active status |
 
 **Response:**
 
@@ -1157,32 +951,13 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "id": "service_id",
-    "name": "Custom Service",
-    "description": "Custom service description",
-    "externalProvider": {
-      "id": "provider_id",
-      "name": "Shehabi"
-    },
-    "externalServiceId": "custom-123",
-    "costPriceUSD": 50.00,
-    "sellingPriceSYP": 53000.00,
-    "pricingType": "fixed",
-    "quantityRules": {
-      "min": 1,
-      "max": 10
-    },
-    "requiredFields": [
-      {
-        "key": "phone",
-        "label": "Phone Number",
-        "type": "phone",
-        "required": true
-      }
-    ],
-    "category": "custom",
-    "isActive": true,
-    "createdAt": "2024-01-15T10:30:00.000Z"
+    "service": {
+      "id": "service_id",
+      "name": "Custom Service",
+      "costPriceUSD": 50.00,
+      "sellingPriceSYP": 53000.00,
+      "isActive": true
+    }
   }
 }
 ```
@@ -1217,10 +992,6 @@ Content-Type: application/json
 | `description` | string | No | Updated description |
 | `costPriceUSD` | number | No | Updated cost |
 | `sellingPriceSYP` | number | No | Updated selling price |
-| `pricingType` | string | No | Updated pricing type |
-| `quantityRules` | object | No | Updated quantity rules |
-| `requiredFields` | array | No | Updated required fields |
-| `category` | string | No | Updated category |
 | `isActive` | boolean | No | Active status |
 
 **Response:**
@@ -1229,11 +1000,12 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "id": "service_id",
-    "name": "Updated Service Name",
-    "sellingPriceSYP": 55000.00,
-    "isActive": true,
-    "updatedAt": "2024-01-15T10:35:00.000Z"
+    "service": {
+      "id": "service_id",
+      "name": "Updated Service Name",
+      "sellingPriceSYP": 55000.00,
+      "isActive": true
+    }
   }
 }
 ```
@@ -1258,7 +1030,9 @@ Authorization: Bearer <access_token>
 ```json
 {
   "success": true,
-  "message": "Service deleted successfully"
+  "data": {
+    "message": "Service deleted successfully"
+  }
 }
 ```
 
@@ -1281,65 +1055,38 @@ Authorization: Bearer <access_token>
 | `limit` | number | Items per page | 20 |
 | `status` | string | Filter by status | - |
 | `provider` | string | Filter by provider type | - |
-| `agentId` | string | Filter by agent | - |
 | `startDate` | string | Filter by start date | - |
 | `endDate` | string | Filter by end date | - |
-| `sortBy` | string | Sort field (createdAt, amountSYP) | createdAt |
-| `sortOrder` | string | Sort order (asc, desc) | desc |
 
 **Response:**
 
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": "order_id",
-      "service": {
-        "id": "service_id",
-        "name": "MTN 100 Units"
-      },
-      "externalProvider": {
-        "id": "provider_id",
-        "name": "Shehabi",
-        "providerType": "shehabi"
-      },
-      "performedBy": {
-        "id": "agent_id",
-        "name": "Agent Name",
-        "email": "agent@example.com",
-        "role": "agent"
-      },
-      "status": "completed",
-      "amountSYP": 10600.00,
-      "costUSD": 100.00,
-      "profitUSD": 5.00,
-      "badge": {
-        "id": "badge_id",
-        "name": "bronze",
-        "displayName": "Bronze"
-      },
-      "exchangeRateAtOrder": 10600.00,
-      "quantity": 1,
-      "customerInput": {
-        "phone": "0944123456"
-      },
-      "externalOrderId": "provider_order_id",
-      "externalOrderUuid": "uuid-string",
-      "providerResponse": {},
-      "failureReason": null,
-      "debitTransaction": "transaction_id",
-      "refundTransaction": null,
-      "statusCheckAttempts": 3,
-      "createdAt": "2024-01-15T10:30:00.000Z",
-      "updatedAt": "2024-01-15T10:35:00.000Z"
+  "data": {
+    "orders": [
+      {
+        "id": "order_id",
+        "service": {
+          "id": "service_id",
+          "name": "MTN 100 Units"
+        },
+        "performedBy": {
+          "id": "client_id",
+          "name": "Client Name",
+          "role": "client"
+        },
+        "status": "completed",
+        "amountSYP": 10600.00,
+        "createdAt": "2024-01-15T10:30:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 100,
+      "totalPages": 5
     }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 100,
-    "totalPages": 5
   }
 }
 ```
@@ -1370,7 +1117,7 @@ Content-Type: application/json
 | `serviceId` | string | Yes | Service ID |
 | `quantity` | number | No | Quantity (default: 1) |
 | `customerInput` | object | Yes | Customer data |
-| `idempotencyKey` | string | No | Unique key for idempotency |
+| `idempotencyKey` | string | No | Unique key to prevent duplicates |
 
 **Response:**
 
@@ -1378,44 +1125,23 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "id": "order_id",
-    "service": {
-      "id": "service_id",
-      "name": "MTN 100 Units"
-    },
-    "externalProvider": {
-      "id": "provider_id",
-      "name": "Shehabi",
-      "providerType": "shehabi"
-    },
-    "performedBy": {
-      "id": "admin_id",
-      "name": "Admin",
-      "email": "admin@sayed.com",
-      "role": "admin"
-    },
-    "status": "processing",
-    "amountSYP": 10600.00,
-    "costUSD": 100.00,
-    "profitUSD": 0.00,
-    "exchangeRateAtOrder": 10600.00,
-    "quantity": 1,
-    "customerInput": {
-      "phone": "0944123456"
-    },
-    "externalOrderId": "provider_order_id",
-    "externalOrderUuid": "uuid-string",
-    "providerResponse": {},
-    "debitTransaction": "transaction_id",
-    "statusCheckAttempts": 0,
-    "createdAt": "2024-01-15T10:30:00.000Z"
+    "order": {
+      "id": "order_id",
+      "service": {
+        "id": "service_id",
+        "name": "MTN 100 Units"
+      },
+      "status": "processing",
+      "amountSYP": 10600.00,
+      "createdAt": "2024-01-15T10:30:00.000Z"
+    }
   }
 }
 ```
 
 #### Refresh Order Status
 
-Manually trigger a status check for an order.
+Manually trigger a status check for a specific order.
 
 ```http
 POST /admin/orders/:id/refresh
@@ -1434,13 +1160,219 @@ Authorization: Bearer <access_token>
 {
   "success": true,
   "data": {
-    "id": "order_id",
-    "status": "completed",
-    "providerResponse": {
+    "order": {
+      "id": "order_id",
       "status": "completed",
-      "message": "Order fulfilled successfully"
-    },
-    "updatedAt": "2024-01-15T10:35:00.000Z"
+      "updatedAt": "2024-01-15T10:35:00.000Z"
+    }
+  }
+}
+```
+
+#### List Wait Orders
+
+Retrieve all orders with "wait" status (مزود category orders awaiting admin approval).
+
+```http
+GET /admin/orders/wait
+Authorization: Bearer <access_token>
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `page` | number | Page number | 1 |
+| `limit` | number | Items per page | 20 |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "orders": [
+      {
+        "id": "order_id",
+        "externalProvider": {
+          "id": "provider_id",
+          "name": "Tempo",
+          "providerType": "tempo"
+        },
+        "performedBy": {
+          "id": "client_id",
+          "name": "Client Name",
+          "role": "client"
+        },
+        "status": "wait",
+        "amountSYP": 5000.00,
+        "costUSD": 0.50,
+        "quantity": 1,
+        "customerInput": {
+          "phone": "0944123456"
+        },
+        "providerResponse": {
+          "category": "mazwod"
+        },
+        "createdAt": "2024-01-15T10:30:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 10,
+      "totalPages": 1
+    }
+  }
+}
+```
+
+#### Accept Wait Order
+
+Accept a wait status order (مزود category) and change its status to completed.
+
+```http
+POST /admin/orders/:orderId/accept
+Authorization: Bearer <access_token>
+```
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `orderId` | string | Order ID |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "order": {
+      "id": "order_id",
+      "status": "completed",
+      "updatedAt": "2024-01-15T11:00:00.000Z"
+    }
+  }
+}
+```
+
+#### Reject Wait Order
+
+Reject a wait status order (مزود category) with a rejection note. The client will be refunded automatically.
+
+```http
+POST /admin/orders/:orderId/reject
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "rejectionNote": "Service temporarily unavailable"
+}
+```
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `orderId` | string | Order ID |
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `rejectionNote` | string | Yes | Reason for rejection |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "order": {
+      "id": "order_id",
+      "status": "failed",
+      "rejectionNote": "Service temporarily unavailable",
+      "refundTransaction": {
+        "id": "refund_tx_id",
+        "type": "order_refund",
+        "amount": 5000.00
+      },
+      "updatedAt": "2024-01-15T11:00:00.000Z"
+    }
+  }
+}
+```
+
+### Badge Management
+
+#### List Badges
+
+Retrieve all badges.
+
+```http
+GET /admin/badges
+Authorization: Bearer <access_token>
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "badges": [
+      {
+        "id": "badge_id",
+        "name": "bronze",
+        "displayName": "Bronze",
+        "level": 1,
+        "isActive": true
+      }
+    ]
+  }
+}
+```
+
+#### Create Badge
+
+Create a new badge.
+
+```http
+POST /admin/badges
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "name": "gold",
+  "displayName": "Gold",
+  "level": 3,
+  "description": "Highest tier badge"
+}
+```
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Unique badge name |
+| `displayName` | string | Yes | Display name |
+| `level` | number | Yes | Badge level |
+| `description` | string | No | Badge description |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "badge": {
+      "id": "badge_id",
+      "name": "gold",
+      "displayName": "Gold",
+      "level": 3,
+      "isActive": true
+    }
   }
 }
 ```
@@ -1461,127 +1393,9 @@ Authorization: Bearer <access_token>
 | Parameter | Type | Description | Default |
 |-----------|------|-------------|---------|
 | `page` | number | Page number | 1 |
-| `limit` | number | Items per page | 20 |
+| `limit` | number | Items per page | 30 |
+| `userId` | string | Filter by user ID | - |
 | `type` | string | Filter by transaction type | - |
-| `status` | string | Filter by status | - |
-| `userId` | string | Filter by user | - |
-| `startDate` | string | Filter by start date | - |
-| `endDate` | string | Filter by end date | - |
-| `sortBy` | string | Sort field (createdAt, amount) | createdAt |
-| `sortOrder` | string | Sort order (asc, desc) | desc |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "transaction_id",
-      "type": "agent_deposit",
-      "currency": "SYP",
-      "amount": 50000.00,
-      "user": {
-        "id": "agent_id",
-        "name": "Agent Name",
-        "email": "agent@example.com"
-      },
-      "performedBy": {
-        "id": "admin_id",
-        "name": "Admin",
-        "email": "admin@sayed.com"
-      },
-      "balanceBefore": 100000.00,
-      "balanceAfter": 150000.00,
-      "order": null,
-      "externalProvider": null,
-      "providerBalanceBefore": null,
-      "providerBalanceAfter": null,
-      "description": "Deposit to agent balance",
-      "metadata": {},
-      "status": "completed",
-      "idempotencyKey": "unique-key",
-      "createdAt": "2024-01-15T10:30:00.000Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 100,
-    "totalPages": 5
-  }
-}
-```
-
-### Badge Management
-
-#### List Badges
-
-Retrieve all badges.
-
-```http
-GET /admin/badges
-Authorization: Bearer <access_token>
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `isActive` | boolean | Filter by active status | - |
-| `sortBy` | string | Sort field (level, name) | level |
-| `sortOrder` | string | Sort order (asc, desc) | asc |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "badge_id",
-      "name": "bronze",
-      "displayName": "Bronze",
-      "description": "Entry level badge",
-      "level": 1,
-      "isActive": true,
-      "icon": "bronze-icon",
-      "color": "#CD7F32",
-      "createdAt": "2024-01-01T00:00:00.000Z"
-    }
-  ]
-}
-```
-
-#### Create Badge
-
-Create a new badge.
-
-```http
-POST /admin/badges
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "name": "platinum",
-  "displayName": "Platinum",
-  "description": "Highest tier badge",
-  "level": 4,
-  "icon": "platinum-icon",
-  "color": "#E5E4E2"
-}
-```
-
-**Request Body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Unique badge name |
-| `displayName` | string | Yes | Display name |
-| `description` | string | No | Badge description |
-| `level` | number | Yes | Badge level (higher = higher tier) |
-| `icon` | string | No | Icon identifier |
-| `color` | string | No | Color code |
 
 **Response:**
 
@@ -1589,398 +1403,35 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "id": "badge_id",
-    "name": "platinum",
-    "displayName": "Platinum",
-    "description": "Highest tier badge",
-    "level": 4,
-    "isActive": true,
-    "icon": "platinum-icon",
-    "color": "#E5E4E2",
-    "createdAt": "2024-01-15T10:30:00.000Z"
-  }
-}
-```
-
-#### Get Badge
-
-Get details of a specific badge.
-
-```http
-GET /admin/badges/:id
-Authorization: Bearer <access_token>
-```
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | string | Badge ID |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "badge_id",
-    "name": "bronze",
-    "displayName": "Bronze",
-    "description": "Entry level badge",
-    "level": 1,
-    "isActive": true,
-    "icon": "bronze-icon",
-    "color": "#CD7F32",
-    "createdAt": "2024-01-01T00:00:00.000Z"
-  }
-}
-```
-
-#### Update Badge
-
-Update badge details.
-
-```http
-PATCH /admin/badges/:id
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "displayName": "Updated Bronze",
-  "isActive": true
-}
-```
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | string | Badge ID |
-
-**Request Body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `displayName` | string | No | Updated display name |
-| `description` | string | No | Updated description |
-| `level` | number | No | Updated level |
-| `isActive` | boolean | No | Active status |
-| `icon` | string | No | Updated icon |
-| `color` | string | No | Updated color |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "badge_id",
-    "name": "bronze",
-    "displayName": "Updated Bronze",
-    "level": 1,
-    "isActive": true,
-    "updatedAt": "2024-01-15T10:35:00.000Z"
-  }
-}
-```
-
-#### Delete Badge
-
-Delete a badge.
-
-```http
-DELETE /admin/badges/:id
-Authorization: Bearer <access_token>
-```
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | string | Badge ID |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "message": "Badge deleted successfully"
-}
-```
-
-### Product Profit Management
-
-#### List Product Profits
-
-Retrieve custom profit settings for products.
-
-```http
-GET /admin/product-profits
-Authorization: Bearer <access_token>
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `page` | number | Page number | 1 |
-| `limit` | number | Items per page | 20 |
-| `badgeId` | string | Filter by badge | - |
-| `providerId` | string | Filter by provider | - |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "profit_id",
-      "badge": {
-        "id": "badge_id",
-        "name": "bronze",
-        "displayName": "Bronze"
-      },
-      "provider": {
-        "id": "provider_id",
-        "name": "Shehabi",
-        "providerType": "shehabi"
-      },
-      "profitMarginPercent": 5.00,
-      "createdAt": "2024-01-15T10:30:00.000Z"
+    "transactions": [
+      {
+        "id": "transaction_id",
+        "type": "client_deposit",
+        "currency": "SYP",
+        "amount": 10000.00,
+        "user": {
+          "id": "client_id",
+          "name": "Client Name"
+        },
+        "balanceBefore": 50000.00,
+        "balanceAfter": 60000.00,
+        "status": "completed",
+        "createdAt": "2024-01-15T10:30:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 30,
+      "total": 100,
+      "totalPages": 4
     }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 10,
-    "totalPages": 1
   }
-}
-```
-
-#### Set Product Profit
-
-Set profit margin for a badge/provider combination.
-
-```http
-POST /admin/product-profits
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "badgeId": "badge_id",
-  "providerId": "provider_id",
-  "profitMarginPercent": 10
-}
-```
-
-**Request Body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `badgeId` | string | Yes | Badge ID |
-| `providerId` | string | Yes | Provider ID |
-| `profitMarginPercent` | number | Yes | Profit margin percentage |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "profit_id",
-    "badge": {
-      "id": "badge_id",
-      "name": "bronze",
-      "displayName": "Bronze"
-    },
-    "provider": {
-      "id": "provider_id",
-      "name": "Shehabi",
-      "providerType": "shehabi"
-    },
-    "profitMarginPercent": 10.00,
-    "createdAt": "2024-01-15T10:30:00.000Z"
-  }
-}
-```
-
-#### Delete Product Profit
-
-Remove custom profit setting.
-
-```http
-DELETE /admin/product-profits
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "badgeId": "badge_id",
-  "providerId": "provider_id"
-}
-```
-
-**Request Body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `badgeId` | string | Yes | Badge ID |
-| `providerId` | string | Yes | Provider ID |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "message": "Product profit deleted successfully"
-}
-```
-
-#### Batch Set Product Profits
-
-Set profit margins for multiple products at once.
-
-```http
-POST /admin/product-profits/batch
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "profits": [
-    {
-      "badgeId": "badge_id_1",
-      "providerId": "provider_id",
-      "profitMarginPercent": 5
-    },
-    {
-      "badgeId": "badge_id_2",
-      "providerId": "provider_id",
-      "profitMarginPercent": 8
-    }
-  ]
-}
-```
-
-**Request Body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `profits` | array | Yes | Array of profit settings |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "created": 2,
-    "updated": 0,
-    "failed": 0
-  }
-}
-```
-
-### Merged Products
-
-#### List Merged Products
-
-Get merged product catalog from all providers.
-
-```http
-GET /admin/merged-products
-Authorization: Bearer <access_token>
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `page` | number | Page number | 1 |
-| `limit` | number | Items per page | 50 |
-| `search` | string | Search in name | - |
-| `provider` | string | Filter by provider type | - |
-| `category` | string | Filter by category | - |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "service_id",
-      "name": "MTN 100 Units",
-      "description": "Mobile top-up",
-      "provider": "shehabi",
-      "providerId": "provider_id",
-      "category": "وحدات ام تي ان",
-      "basePrice": 100.00,
-      "sellPrices": {
-        "bronze": 10600.00,
-        "silver": 10500.00,
-        "gold": 10400.00
-      },
-      "requiredFields": [
-        {
-          "key": "phone",
-          "label": "Phone Number",
-          "type": "phone"
-        }
-      ],
-      "isActive": true
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 50,
-    "total": 150,
-    "totalPages": 3
-  }
-}
-```
-
-#### Refresh Products Cache
-
-Refresh the merged products cache.
-
-```http
-POST /admin/merged-products/refresh
-Authorization: Bearer <access_token>
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "message": "Products cache refreshed successfully"
-}
-```
-
-### Order Status Check
-
-#### Trigger Order Status Check
-
-Manually trigger the background order status check job.
-
-```http
-POST /admin/orders/check-status
-Authorization: Bearer <access_token>
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "message": "Order status check triggered successfully"
 }
 ```
 
 ## Error Responses
 
-All endpoints may return error responses in the following format:
+All endpoints may return error responses:
 
 ```json
 {
@@ -1989,7 +1440,7 @@ All endpoints may return error responses in the following format:
   "errors": [
     {
       "field": "field_name",
-      "message": "Specific error message for this field"
+      "message": "Specific error message"
     }
   ]
 }
@@ -2003,26 +1454,5 @@ All endpoints may return error responses in the following format:
 | 401 | Unauthorized - Missing or invalid token |
 | 403 | Forbidden - Insufficient permissions |
 | 404 | Not Found - Resource not found |
-| 409 | Conflict - Duplicate resource |
-| 422 | Unprocessable Entity - Business logic error |
-| 429 | Too Many Requests - Rate limit exceeded |
+| 422 | Unprocessable Entity - Insufficient balance |
 | 500 | Internal Server Error - Server error |
-
-## Rate Limiting
-
-Authentication endpoints are rate-limited to 30 requests per 15 minutes per IP address.
-
-## Best Practices
-
-1. **Use Idempotency Keys** - When placing orders, use unique keys to prevent duplicates
-2. **Monitor Provider Balances** - Regularly sync provider balances
-3. **Keep Services Updated** - Sync provider products regularly
-4. **Review Balance Requests** - Process balance requests promptly
-5. **Use Pagination** - For large datasets, use pagination
-6. **Audit Transactions** - Regularly review transaction logs
-7. **Secure Admin Access** - Use strong passwords and 2FA when available
-8. **Backup Data** - Regular database backups are essential
-
-## Support
-
-For API support or questions, contact your system administrator.

@@ -1,6 +1,8 @@
 import * as orderService from '../services/order.service.js';
 import * as transactionService from '../services/transaction.service.js';
 import * as exchangeRateService from '../services/exchangeRate.service.js';
+import { getMergedProducts } from '../services/mergedProducts.service.js';
+import { Agent } from '../models/Agent.js';
 
 export async function placeOrder(req, res, next) {
   try {
@@ -13,6 +15,7 @@ export async function placeOrder(req, res, next) {
         quantity: req.body.quantity,
         customerInput: req.body.customerInput,
         price: req.body.price,
+        category: req.body.category,
         idempotencyKey: req.body.idempotencyKey,
       });
       res.status(201).json({ success: true, data: { order } });
@@ -39,6 +42,7 @@ export async function listOrders(req, res, next) {
       providerStatus: req.query.providerStatus,
       page: Number(req.query.page) || 1,
       limit: Number(req.query.limit) || 20,
+      includeProviderInfo: false, // Clients don't see provider information
     });
     res.json({ success: true, data });
   } catch (err) {
@@ -50,6 +54,7 @@ export async function getOrder(req, res, next) {
   try {
     const order = await orderService.getOrderById(req.params.id, {
       performedBy: req.user._id,
+      includeProviderInfo: false, // Clients don't see provider information
     });
     res.json({ success: true, data: { order } });
   } catch (err) {
@@ -77,6 +82,46 @@ export async function listTransactions(req, res, next) {
       limit: Number(req.query.limit) || 30,
     });
     res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getProfile(req, res, next) {
+  try {
+    res.json({ success: true, data: { user: req.user } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listServices(req, res, next) {
+  try {
+    const includeProfits = req.query.includeProfits === 'true';
+    const products = await getMergedProducts({ 
+      includeProfits,
+      userRole: 'client',
+      userBadgeId: req.user.badge
+    });
+    res.json({ success: true, data: { products } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getExchangeRate(req, res, next) {
+  try {
+    const rate = await exchangeRateService.getActiveRate();
+    res.json({ success: true, data: { rate } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listAgents(req, res, next) {
+  try {
+    const agents = await Agent.find().sort({ createdAt: -1 });
+    res.json({ success: true, data: { agents } });
   } catch (err) {
     next(err);
   }

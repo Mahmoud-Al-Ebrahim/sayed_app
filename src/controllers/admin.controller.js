@@ -1,5 +1,3 @@
-import * as agentService from '../services/agent.service.js';
-import * as balanceRequestService from '../services/balanceRequest.service.js';
 import * as exchangeRateService from '../services/exchangeRate.service.js';
 import * as providerService from '../services/provider.service.js';
 import * as catalogService from '../services/catalog.service.js';
@@ -9,135 +7,10 @@ import * as badgeService from '../services/badge.service.js';
 import { getMergedProducts } from '../services/mergedProducts.service.js';
 import { User } from '../models/User.js';
 import { ProviderDeposit } from '../models/ProviderDeposit.js';
-import { ROLES, TRANSACTION_TYPES } from '../constants/index.js';
+import { ROLES, TRANSACTION_TYPES, ORDER_STATUS } from '../constants/index.js';
 import { adjustUserBalance } from '../services/ledger.service.js';
 import { toMoney } from '../utils/money.js';
 import { msg } from '../constants/messages.js';
-
-export async function listAgents(req, res, next) {
-  try {
-    const data = await agentService.listAgents({
-      page: Number(req.query.page) || 1,
-      limit: Number(req.query.limit) || 20,
-    });
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function createAgent(req, res, next) {
-  try {
-    const agent = await agentService.createAgent(req.body);
-    res.status(201).json({ success: true, data: { agent } });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function updateAgent(req, res, next) {
-  try {
-    const agent = await agentService.updateAgent(req.params.id, req.body);
-    res.json({ success: true, data: { agent } });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function depositToAgent(req, res, next) {
-  try {
-    const transaction = await agentService.depositToAgent({
-      agentId: req.params.id,
-      amount: req.body.amount,
-      adminId: req.user._id,
-      note: req.body.note,
-      idempotencyKey: req.body.idempotencyKey,
-    });
-    res.status(201).json({ success: true, data: { transaction } });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function withdrawFromAgent(req, res, next) {
-  try {
-    const transaction = await agentService.withdrawFromAgent({
-      agentId: req.params.id,
-      amount: req.body.amount,
-      adminId: req.user._id,
-      note: req.body.note,
-      idempotencyKey: req.body.idempotencyKey,
-    });
-    res.status(201).json({ success: true, data: { transaction } });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function updateAgentBadge(req, res, next) {
-  try {
-    const { badgeId } = req.body;
-    
-    if (!badgeId) {
-      return res.status(400).json({ success: false, message: 'Badge ID is required' });
-    }
-
-    const badge = await badgeService.getBadgeById(badgeId);
-    
-    const agent = await User.findByIdAndUpdate(
-      req.params.id,
-      { badge: badgeId },
-      { new: true, runValidators: true }
-    ).populate('badge');
-
-    if (!agent) {
-      return res.status(404).json({ success: false, message: msg.AGENT_NOT_FOUND });
-    }
-
-    res.json({ success: true, data: { agent } });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function listBalanceRequests(req, res, next) {
-  try {
-    const data = await balanceRequestService.listBalanceRequests({
-      status: req.query.status,
-      page: Number(req.query.page) || 1,
-      limit: Number(req.query.limit) || 20,
-    });
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function approveBalanceRequest(req, res, next) {
-  try {
-    const request = await balanceRequestService.approveBalanceRequest({
-      requestId: req.params.id,
-      adminId: req.user._id,
-      idempotencyKey: req.body.idempotencyKey,
-    });
-    res.json({ success: true, data: { request } });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function rejectBalanceRequest(req, res, next) {
-  try {
-    const request = await balanceRequestService.rejectBalanceRequest({
-      requestId: req.params.id,
-      adminId: req.user._id,
-      reason: req.body.reason,
-    });
-    res.json({ success: true, data: { request } });
-  } catch (err) {
-    next(err);
-  }
-}
 
 export async function getExchangeRate(req, res, next) {
   try {
@@ -221,7 +94,11 @@ export async function syncProviderProducts(req, res, next) {
 export async function listServices(req, res, next) {
   try {
     const includeProfits = req.query.includeProfits === 'true';
-    const products = await getMergedProducts({ includeProfits });
+    const products = await getMergedProducts({ 
+      includeProfits,
+      userRole: 'admin',
+      userBadgeId: null
+    });
     res.json({ success: true, data: { products } });
   } catch (err) {
     next(err);
@@ -272,11 +149,39 @@ export async function listTransactions(req, res, next) {
 export async function listOrders(req, res, next) {
   try {
     const data = await orderService.listOrders({
-      performedBy: req.query.userId, // Admin can filter by any user (agent or client)
+      filterUserId: req.query.userId, // Admin can filter by specific client/user
       status: req.query.status,
       providerStatus: req.query.providerStatus,
       page: Number(req.query.page) || 1,
       limit: Number(req.query.limit) || 20,
+      includeProviderInfo: true, // Admin sees provider information
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getClientOrders(req, res, next) {
+  try {
+    const integerId = parseInt(req.params.integerId);
+    const client = await User.findByIntegerId(integerId);
+    
+    if (!client) {
+      return res.status(404).json({ success: false, message: msg.USER_NOT_FOUND });
+    }
+
+    if (client.role !== ROLES.CLIENT) {
+      return res.status(400).json({ success: false, message: 'User is not a client' });
+    }
+
+    const data = await orderService.listOrders({
+      filterUserId: client._id,
+      status: req.query.status,
+      providerStatus: req.query.providerStatus,
+      page: Number(req.query.page) || 1,
+      limit: Number(req.query.limit) || 20,
+      includeProviderInfo: true,
     });
     res.json({ success: true, data });
   } catch (err) {
@@ -312,14 +217,26 @@ export async function listClients(req, res, next) {
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 20;
+    const search = req.query.search;
     
+    const query = { role: ROLES.CLIENT };
+    
+    if (search) {
+      const searchNum = parseInt(search);
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { integerId: !isNaN(searchNum) ? searchNum : null },
+      ].filter(item => item.integerId !== null || item.name || item.email);
+    }
+
     const [clients, total] = await Promise.all([
-      User.find({ role: ROLES.CLIENT })
+      User.find(query)
         .select('-passwordHash -refreshTokens')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
-      User.countDocuments({ role: ROLES.CLIENT }),
+      User.countDocuments(query),
     ]);
 
     res.json({ success: true, data: { clients, total, page, limit } });
@@ -328,9 +245,10 @@ export async function listClients(req, res, next) {
   }
 }
 
-export async function upgradeClientToAgent(req, res, next) {
+export async function getClientByIntegerId(req, res, next) {
   try {
-    const client = await User.findById(req.params.id);
+    const integerId = parseInt(req.params.integerId);
+    const client = await User.findByIntegerId(integerId);
     
     if (!client) {
       return res.status(404).json({ success: false, message: msg.USER_NOT_FOUND });
@@ -340,10 +258,105 @@ export async function upgradeClientToAgent(req, res, next) {
       return res.status(400).json({ success: false, message: 'User is not a client' });
     }
 
-    client.role = ROLES.AGENT;
+    res.json({ success: true, data: { client } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateClientPassword(req, res, next) {
+  try {
+    const integerId = parseInt(req.params.integerId);
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ success: false, message: 'Password is required' });
+    }
+
+    const client = await User.findByIntegerId(integerId);
+    
+    if (!client) {
+      return res.status(404).json({ success: false, message: msg.USER_NOT_FOUND });
+    }
+
+    if (client.role !== ROLES.CLIENT) {
+      return res.status(400).json({ success: false, message: 'User is not a client' });
+    }
+
+    await client.setPassword(password);
     await client.save();
 
-    res.json({ success: true, data: { user: client } });
+    res.json({ success: true, data: { message: 'Password updated successfully' } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function blockClient(req, res, next) {
+  try {
+    const integerId = parseInt(req.params.integerId);
+    const client = await User.findByIntegerId(integerId);
+    
+    if (!client) {
+      return res.status(404).json({ success: false, message: msg.USER_NOT_FOUND });
+    }
+
+    if (client.role !== ROLES.CLIENT) {
+      return res.status(400).json({ success: false, message: 'User is not a client' });
+    }
+
+    client.isBlocked = true;
+    await client.save();
+
+    res.json({ success: true, data: { message: 'Client blocked successfully' } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function unblockClient(req, res, next) {
+  try {
+    const integerId = parseInt(req.params.integerId);
+    const client = await User.findByIntegerId(integerId);
+    
+    if (!client) {
+      return res.status(404).json({ success: false, message: msg.USER_NOT_FOUND });
+    }
+
+    if (client.role !== ROLES.CLIENT) {
+      return res.status(400).json({ success: false, message: 'User is not a client' });
+    }
+
+    client.isBlocked = false;
+    await client.save();
+
+    res.json({ success: true, data: { message: 'Client unblocked successfully' } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getClientTransactions(req, res, next) {
+  try {
+    const integerId = parseInt(req.params.integerId);
+    const client = await User.findByIntegerId(integerId);
+    
+    if (!client) {
+      return res.status(404).json({ success: false, message: msg.USER_NOT_FOUND });
+    }
+
+    if (client.role !== ROLES.CLIENT) {
+      return res.status(400).json({ success: false, message: 'User is not a client' });
+    }
+
+    const data = await transactionService.listTransactions({
+      userId: client._id,
+      type: req.query.type,
+      page: Number(req.query.page) || 1,
+      limit: Number(req.query.limit) || 30,
+    });
+
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
@@ -368,35 +381,6 @@ export async function depositToClient(req, res, next) {
       performedBy: req.user._id,
       counterparty: req.user._id,
       description: req.body.note || 'Admin deposit to client',
-      idempotencyKey: req.body.idempotencyKey,
-    });
-
-    res.status(201).json({ success: true, data: { transaction } });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function withdrawFromClient(req, res, next) {
-  try {
-    const client = await User.findById(req.params.id);
-    
-    if (!client) {
-      return res.status(404).json({ success: false, message: msg.USER_NOT_FOUND });
-    }
-
-    if (client.role !== ROLES.CLIENT) {
-      return res.status(400).json({ success: false, message: 'User is not a client' });
-    }
-
-    const transaction = await adjustUserBalance({
-      userId: client._id,
-      amount: req.body.amount,
-      type: TRANSACTION_TYPES.CLIENT_WITHDRAW,
-      performedBy: req.user._id,
-      counterparty: req.user._id,
-      isDebit: true,
-      description: req.body.note || 'Admin withdraw from client',
       idempotencyKey: req.body.idempotencyKey,
     });
 
@@ -479,6 +463,51 @@ export async function deleteProviderDeposit(req, res, next) {
     await ProviderDeposit.findByIdAndDelete(req.params.id);
 
     res.json({ success: true, data: { deposit } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function acceptWaitOrder(req, res, next) {
+  try {
+    const { orderId } = req.params;
+    const order = await orderService.acceptWaitOrder(orderId, req.user._id);
+    res.json({ success: true, data: { order } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function rejectWaitOrder(req, res, next) {
+  try {
+    const { orderId } = req.params;
+    const { rejectionNote } = req.body;
+    
+    if (!rejectionNote) {
+      return res.status(400).json({ success: false, message: 'Rejection note is required' });
+    }
+    
+    const order = await orderService.rejectWaitOrder(orderId, req.user._id, rejectionNote);
+    res.json({ success: true, data: { order } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listWaitOrders(req, res, next) {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const { orders, total } = await orderService.listOrders({
+      page: parseInt(page),
+      limit: parseInt(limit),
+      status: ORDER_STATUS.WAIT,
+    });
+    
+    res.json({ 
+      success: true, 
+      data: { orders },
+      pagination: { page: parseInt(page), limit: parseInt(limit), total, totalPages: Math.ceil(total / limit) }
+    });
   } catch (err) {
     next(err);
   }

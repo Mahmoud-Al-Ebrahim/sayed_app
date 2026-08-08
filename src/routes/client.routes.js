@@ -6,12 +6,25 @@ const router = Router();
 
 router.use(authenticate, requireAuthenticated);
 
-// Clients cannot place orders - only view their own orders
+// Profile
+router.get('/profile', clientController.getProfile);
+
+// Orders
+router.post('/orders', clientController.placeOrder);
 router.get('/orders', clientController.listOrders);
 router.get('/orders/:id', clientController.getOrder);
 router.post('/orders/:id/refresh', clientController.refreshOrderStatus);
 
-// Clients can only see their own transactions
+// Services
+router.get('/services', clientController.listServices);
+
+// Exchange rate
+router.get('/exchange-rate', clientController.getExchangeRate);
+
+// Transactions
 router.get('/transactions', clientController.listTransactions);
+
+// Agents (view only)
+router.get('/agents', clientController.listAgents);
 
 export default router;

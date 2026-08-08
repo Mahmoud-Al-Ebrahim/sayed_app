@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import authRoutes from './auth.routes.js';
 import adminRoutes from './admin.routes.js';
-import agentRoutes from './agent.routes.js';
 import clientRoutes from './client.routes.js';
 import { msg } from '../constants/messages.js';
 
@@ -13,7 +12,6 @@ router.get('/health', (_req, res) => {
 
 router.use('/auth', authRoutes);
 router.use('/admin', adminRoutes);
-router.use('/agent', agentRoutes);
 router.use('/client', clientRoutes);
 
 export default router;

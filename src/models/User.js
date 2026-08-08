@@ -56,6 +56,11 @@ const userSchema = new mongoose.Schema(
       default: ROLES.CLIENT,
       index: true,
     },
+    isBlocked: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     /** Badge for profit margin calculation */
     badge: {
       type: mongoose.Schema.Types.ObjectId,
@@ -125,5 +130,17 @@ userSchema.statics.findByEmail = function findByEmail(email) {
 userSchema.statics.findByIntegerId = function findByIntegerId(integerId) {
   return this.findOne({ integerId });
 };
+
+// Pre-save hook to assign bronze badge if not set
+userSchema.pre('save', async function (next) {
+  if (this.isNew && !this.badge) {
+    const { Badge } = await import('./Badge.js');
+    const bronzeBadge = await Badge.findOne({ name: 'bronze' });
+    if (bronzeBadge) {
+      this.badge = bronzeBadge._id;
+    }
+  }
+  next();
+});
 
 export const User = mongoose.model('User', userSchema);

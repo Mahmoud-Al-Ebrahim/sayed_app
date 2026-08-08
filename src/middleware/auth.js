@@ -18,6 +18,10 @@ export async function authenticate(req, res, next) {
       return res.status(401).json({ success: false, message: msg.INVALID_USER });
     }
 
+    if (user.isBlocked) {
+      return res.status(403).json({ success: false, message: 'Your account has been blocked' });
+    }
+
     req.user = user;
     next();
   } catch {
@@ -35,11 +39,7 @@ export function requireRole(...roles) {
 }
 
 export const requireAdmin = requireRole(ROLES.ADMIN);
-export const requireAgent = requireRole(ROLES.AGENT);
 export const requireClient = requireRole(ROLES.CLIENT);
-
-// Middleware to allow admin and agent (but not client)
-export const requireAgentOrAdmin = requireRole(ROLES.AGENT, ROLES.ADMIN);
 
 // Middleware to allow all authenticated users
 export const requireAuthenticated = (req, res, next) => {

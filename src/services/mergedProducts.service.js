@@ -17,8 +17,12 @@ let productsCache = {
 /**
  * Get merged products from both Shehabi and Tempo
  * Returns Shehabi products for target categories and Tempo products excluding duplicates
+ * @param {Object} options - Options for fetching products
+ * @param {boolean} options.includeProfits - Whether to include profit information
+ * @param {string} options.userRole - User role ('admin' or 'client')
+ * @param {ObjectId} options.userBadgeId - User's badge ID (required for client role)
  */
-export async function getMergedProducts({ includeProfits = false } = {}) {
+export async function getMergedProducts({ includeProfits = false, userRole = 'admin', userBadgeId = null } = {}) {
   const now = Date.now();
   
   // Return cached data if still valid
@@ -106,7 +110,7 @@ export async function getMergedProducts({ includeProfits = false } = {}) {
     };
 
     if (includeProfits) {
-      return await addProfitsToProducts(mergedProducts);
+      return await addProfitsToProducts(mergedProducts, userRole, userBadgeId);
     }
     return mergedProducts;
   } catch (error) {
@@ -114,7 +118,7 @@ export async function getMergedProducts({ includeProfits = false } = {}) {
     if (productsCache.merged.length > 0) {
       console.warn('Failed to fetch fresh products, returning stale cache:', error.message);
       if (includeProfits) {
-        return await addProfitsToProducts(productsCache.merged);
+        return await addProfitsToProducts(productsCache.merged, userRole, userBadgeId);
       }
       return productsCache.merged;
     }
@@ -123,35 +127,75 @@ export async function getMergedProducts({ includeProfits = false } = {}) {
 }
 
 /**
- * Add sell price information to products for all badges
- * Returns provider-specific sell prices (USD for Tempo, SYP for Shehabi)
+ * Add sell price information to products based on user role
+ * Admin: Returns all badges with sell prices
+ * Client: Returns only the client's badge with sell price
+ * @param {Array} products - Array of products
+ * @param {string} userRole - User role ('admin' or 'client')
+ * @param {ObjectId} userBadgeId - User's badge ID (required for client role)
  */
-async function addProfitsToProducts(products) {
+async function addProfitsToProducts(products, userRole = 'admin', userBadgeId = null) {
   const badges = await Badge.find({ isActive: true }).sort({ level: 1 });
+  
+  // For clients, get their specific badge
+  let clientBadge = null;
+  if (userRole === 'client' && userBadgeId) {
+    clientBadge = await Badge.findById(userBadgeId);
+  }
   
   const productsWithProfits = await Promise.all(
     products.map(async (product) => {
-      const sellPrices = {};
+      const badgePrices = [];
       
-      for (const badge of badges) {
+      if (userRole === 'admin') {
+        // Admin gets all badges with prices
+        for (const badge of badges) {
+          const profit = await ProductProfit.findOne({
+            externalProvider: product.providerId,
+            productId: String(product.id),
+            badge: badge._id,
+          });
+          
+          const priceData = {
+            badgeId: badge._id,
+            badgeName: badge.displayName,
+            badgeLevel: badge.level,
+          };
+          
+          if (product.source === 'tempo') {
+            priceData.sellPriceUSD = profit && profit.sellPriceUSD ? parseFloat(profit.sellPriceUSD.toString()) : null;
+          } else {
+            priceData.sellPriceSYP = profit && profit.sellPriceSYP ? parseFloat(profit.sellPriceSYP.toString()) : null;
+          }
+          
+          badgePrices.push(priceData);
+        }
+      } else if (userRole === 'client' && clientBadge) {
+        // Client gets only their badge with price
         const profit = await ProductProfit.findOne({
           externalProvider: product.providerId,
           productId: String(product.id),
-          badge: badge._id,
+          badge: clientBadge._id,
         });
         
+        const priceData = {
+          badgeId: clientBadge._id,
+          badgeName: clientBadge.displayName,
+          badgeLevel: clientBadge.level,
+        };
+        
         if (product.source === 'tempo') {
-          // Tempo uses sellPriceUSD
-          sellPrices[badge.name] = profit && profit.sellPriceUSD ? parseFloat(profit.sellPriceUSD.toString()) : 0;
+          priceData.sellPriceUSD = profit && profit.sellPriceUSD ? parseFloat(profit.sellPriceUSD.toString()) : null;
         } else {
-          // Shehabi uses sellPriceSYP
-          sellPrices[badge.name] = profit && profit.sellPriceSYP ? parseFloat(profit.sellPriceSYP.toString()) : 0;
+          priceData.sellPriceSYP = profit && profit.sellPriceSYP ? parseFloat(profit.sellPriceSYP.toString()) : null;
         }
+        
+        badgePrices.push(priceData);
       }
       
       return {
         ...product,
-        sellPrices,
+        badgePrices,
       };
     })
   );

@@ -22,7 +22,7 @@ This document provides a comprehensive overview of the Sayed Backend system arch
 
 Sayed Backend is a RESTful API built with Node.js and Express that powers a multi-tier reseller platform. The system manages:
 
-- **User Management**: Multi-role authentication (Admin, Agent, Client)
+- **User Management**: Multi-role authentication (Admin, Client)
 - **Balance Management**: Financial tracking in SYP and USD
 - **Order Processing**: Service order lifecycle with provider integration
 - **Provider Integration**: External API integration with Shehabi and Tempo
@@ -33,7 +33,7 @@ Sayed Backend is a RESTful API built with Node.js and Express that powers a mult
 ```
 ┌─────────────────┐
 │   Frontend UI   │
-│   (Client/Agent)│
+│     (Client)    │
 └────────┬────────┘
          │ HTTP/REST
          ▼
@@ -100,7 +100,7 @@ src/
 │   └── messages.js       # Error messages
 ├── controllers/            # Request handlers
 │   ├── admin.controller.js
-│   ├── agent.controller.js
+│   ├── agentCollection.controller.js
 │   ├── auth.controller.js
 │   ├── badge.controller.js
 │   ├── client.controller.js
@@ -110,8 +110,8 @@ src/
 │   ├── auth.js           # Authentication & authorization
 │   └── errorHandler.js   # Error handling
 ├── models/                # Mongoose models
+│   ├── Agent.js
 │   ├── Badge.js
-│   ├── BalanceRequest.js
 │   ├── ExchangeRate.js
 │   ├── ExternalProvider.js
 │   ├── Order.js
@@ -128,15 +128,13 @@ src/
 │   └── tempo.client.js   # Tempo API client
 ├── routes/                # API route definitions
 │   ├── admin.routes.js
-│   ├── agent.routes.js
+│   ├── agentCollection.routes.js
 │   ├── auth.routes.js
 │   ├── client.routes.js
 │   └── index.js
 ├── services/              # Business logic
-│   ├── agent.service.js
 │   ├── auth.service.js
 │   ├── badge.service.js
-│   ├── balanceRequest.service.js
 │   ├── catalog.service.js
 │   ├── exchangeRate.service.js
 │   ├── googleAuth.service.js
@@ -183,7 +181,7 @@ src/
 
 ### User Model
 
-Represents all users (Admin, Agent, Client) in the system.
+Represents all users (Admin, Client) in the system.
 
 ```javascript
 {
@@ -193,11 +191,12 @@ Represents all users (Admin, Agent, Client) in the system.
   passwordHash: String,        // Hashed password (hidden)
   googleId: String,            // Google OAuth ID
   authProviders: [String],     // ['local', 'google']
-  role: String,                // 'admin', 'agent', 'client'
-  badge: ObjectId,             // Reference to Badge (for agents)
+  role: String,                // 'admin', 'client'
+  badge: ObjectId,             // Reference to Badge
   balance: Decimal128,         // Balance in SYP
   balanceVersion: Number,      // Optimistic locking version
   isActive: Boolean,           // Active status
+  isBlocked: Boolean,          // Blocked status (for clients)
   refreshTokens: [Object],     // Refresh token hashes
   lastLoginAt: Date,           // Last login timestamp
   timestamps: true
@@ -248,9 +247,23 @@ Represents resellable services from providers.
 }
 ```
 
+### Agent Model
+
+Represents agents in the agent collection (managed by admin, viewed by clients).
+
+```javascript
+{
+  name: String,                // Agent full name
+  address: String,             // Agent address
+  phone: String,               // Agent phone number
+  clientIntegerId: Number,     // Reference to existing client's integer ID
+  timestamps: true
+}
+```
+
 ### Order Model
 
-Represents service orders placed by agents/admins.
+Represents service orders placed by clients/admins.
 
 ```javascript
 {
@@ -304,7 +317,7 @@ Represents all financial transactions.
 
 ### Badge Model
 
-Represents agent badges for profit margins.
+Represents badges for profit margins.
 
 ```javascript
 {
@@ -315,23 +328,6 @@ Represents agent badges for profit margins.
   isActive: Boolean,           // Active status
   icon: String,                // Icon identifier
   color: String,               // Color code
-  timestamps: true
-}
-```
-
-### BalanceRequest Model
-
-Represents agent balance deposit requests.
-
-```javascript
-{
-  agent: ObjectId,             // Agent reference
-  amount: Decimal128,          // Requested amount
-  status: String,              // 'pending', 'approved', 'rejected'
-  description: String,          // Request description
-  approvedBy: ObjectId,        // Admin who approved
-  approvedAt: Date,            // Approval timestamp
-  rejectionReason: String,     // Rejection reason
   timestamps: true
 }
 ```
@@ -485,8 +481,6 @@ authenticate(req, res, next)
 // Require admin role
 requireAdmin(req, res, next)
 
-// Require agent or admin
-requireAgentOrAdmin(req, res, next)
 
 // Require any authenticated user
 requireAuthenticated(req, res, next)
@@ -663,8 +657,6 @@ Balance operations use optimistic locking to prevent race conditions:
 
 ### Transaction Types
 
-- `agent_deposit` - Deposit to agent balance
-- `agent_withdraw` - Withdrawal from agent balance
 - `service_order` - Service order expense
 - `order_refund` - Refund for failed order
 - `balance_adjustment` - Manual adjustment

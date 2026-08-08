@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { authenticate, requireAdmin, requireAgentOrAdmin, requireAuthenticated } from '../middleware/auth.js';
+import { authenticate, requireAdmin, requireAuthenticated } from '../middleware/auth.js';
 import * as adminController from '../controllers/admin.controller.js';
+import * as agentCollectionController from '../controllers/agentCollection.controller.js';
 import * as mergedProductsController from '../controllers/mergedProducts.controller.js';
 import * as badgeController from '../controllers/badge.controller.js';
 import * as productProfitController from '../controllers/productProfit.controller.js';
@@ -9,23 +10,23 @@ const router = Router();
 
 router.use(authenticate, requireAdmin);
 
-// Admin-only endpoints
-router.get('/agents', adminController.listAgents);
-router.post('/agents', adminController.createAgent);
-router.patch('/agents/:id', adminController.updateAgent);
-router.post('/agents/:id/deposit', adminController.depositToAgent);
-router.post('/agents/:id/withdraw', adminController.withdrawFromAgent);
-router.patch('/agents/:id/badge', adminController.updateAgentBadge);
+// Agent collection management
+router.get('/agent-collection', agentCollectionController.listAgents);
+router.post('/agent-collection', agentCollectionController.createAgent);
+router.get('/agent-collection/:id', agentCollectionController.getAgent);
+router.patch('/agent-collection/:id', agentCollectionController.updateAgent);
+router.delete('/agent-collection/:id', agentCollectionController.deleteAgent);
 
+// Client management
 router.get('/clients', adminController.listClients);
-// Client upgrade is admin-only
-router.patch('/clients/:id/upgrade', adminController.upgradeClientToAgent);
+router.get('/clients/:integerId', adminController.getClientByIntegerId);
+router.patch('/clients/:integerId/password', adminController.updateClientPassword);
+router.patch('/clients/:integerId/block', adminController.blockClient);
+router.patch('/clients/:integerId/unblock', adminController.unblockClient);
+router.get('/clients/:integerId/transactions', adminController.getClientTransactions);
 router.post('/clients/:id/deposit', adminController.depositToClient);
 router.post('/clients/:id/withdraw', adminController.withdrawFromClient);
 
-router.get('/balance-requests', adminController.listBalanceRequests);
-router.post('/balance-requests/:id/approve', adminController.approveBalanceRequest);
-router.post('/balance-requests/:id/reject', adminController.rejectBalanceRequest);
 
 router.get('/exchange-rate', adminController.getExchangeRate);
 router.post('/exchange-rate', adminController.setExchangeRate);
@@ -44,8 +45,14 @@ router.delete('/services/:id', adminController.deleteService);
 
 router.get('/transactions', adminController.listTransactions);
 router.get('/orders', adminController.listOrders);
+router.get('/clients/:integerId/orders', adminController.getClientOrders);
 router.post('/orders', adminController.placeOrder);
 router.post('/orders/:id/refresh', adminController.refreshOrderStatus);
+
+// Wait order management (for مزود category)
+router.get('/orders/wait', adminController.listWaitOrders);
+router.post('/orders/:orderId/accept', adminController.acceptWaitOrder);
+router.post('/orders/:orderId/reject', adminController.rejectWaitOrder);
 
 router.get('/provider-deposits', adminController.listProviderDeposits);
 router.post('/provider-deposits', adminController.createProviderDeposit);

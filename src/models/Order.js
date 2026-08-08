@@ -84,6 +84,12 @@ const orderSchema = new mongoose.Schema(
       trim: true,
       maxlength: 1000,
     },
+    /** Note for manual rejection (for مزود category orders) */
+    rejectionNote: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+    },
     /** Ledger entries: debit on place, credit on refund */
     debitTransaction: {
       type: mongoose.Schema.Types.ObjectId,

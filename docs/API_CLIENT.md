@@ -1,6 +1,6 @@
 # Client API Documentation
 
-This documentation describes the API endpoints available to **Client** users. Clients are end-users who can view their orders and transaction history.
+This documentation describes the API endpoints available to **Client** users. Clients can place orders, view services, check their profile, view their transactions, and see available agents.
 
 ## Base URL
 
@@ -68,7 +68,98 @@ Content-Type: application/json
 
 ## Endpoints
 
+### Profile
+
+#### Get Profile
+
+Retrieve your profile information.
+
+```http
+GET /client/profile
+Authorization: Bearer <access_token>
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "user_id",
+      "integerId": 2001,
+      "email": "client@example.com",
+      "name": "John Doe",
+      "role": "client",
+      "balance": 50000.00,
+      "balanceVersion": 2,
+      "isActive": true,
+      "isBlocked": false,
+      "lastLoginAt": "2024-01-15T10:30:00.000Z",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  }
+}
+```
+
 ### Orders
+
+#### Place Order
+
+Place a new order for a service.
+
+```http
+POST /client/orders
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "serviceId": "service_id",
+  "quantity": 1,
+  "customerInput": {
+    "phone": "0944123456"
+  },
+  "idempotencyKey": "unique-request-id"
+}
+```
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `serviceId` | string | Yes | Service ID |
+| `quantity` | number | No | Quantity (default: 1) |
+| `customerInput` | object | Yes | Customer data (e.g., phone number) |
+| `idempotencyKey` | string | No | Unique key to prevent duplicate orders |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "order": {
+      "id": "order_id",
+      "service": {
+        "id": "service_id",
+        "name": "MTN 100 Units"
+      },
+      "performedBy": {
+        "id": "user_id",
+        "name": "John Doe",
+        "role": "client"
+      },
+      "status": "processing",
+      "amountSYP": 10600.00,
+      "quantity": 1,
+      "customerInput": {
+        "phone": "0944123456"
+      },
+      "createdAt": "2024-01-15T10:30:00.000Z"
+    }
+  }
+}
+```
 
 #### List Orders
 
@@ -86,63 +177,40 @@ Authorization: Bearer <access_token>
 | `page` | number | Page number | 1 |
 | `limit` | number | Items per page | 20 |
 | `status` | string | Filter by status (pending, processing, completed, failed, cancelled) | - |
-| `sortBy` | string | Sort field (createdAt, amountSYP) | createdAt |
-| `sortOrder` | string | Sort order (asc, desc) | desc |
 
 **Response:**
 
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": "order_id",
-      "service": {
-        "id": "service_id",
-        "name": "MTN 100 Units",
-        "description": "Mobile top-up service"
-      },
-      "externalProvider": {
-        "id": "provider_id",
-        "name": "Shehabi",
-        "providerType": "shehabi"
-      },
-      "performedBy": {
-        "id": "user_id",
-        "name": "Agent Name",
-        "email": "agent@example.com",
-        "role": "agent"
-      },
-      "status": "completed",
-      "amountSYP": 10600.00,
-      "costUSD": 100.00,
-      "profitUSD": 5.00,
-      "badge": {
-        "id": "badge_id",
-        "name": "bronze",
-        "displayName": "Bronze"
-      },
-      "exchangeRateAtOrder": 10600.00,
-      "quantity": 1,
-      "customerInput": {
-        "phone": "0944123456"
-      },
-      "externalOrderId": "provider_order_id",
-      "externalOrderUuid": "uuid-string",
-      "providerResponse": {},
-      "failureReason": null,
-      "debitTransaction": "transaction_id",
-      "refundTransaction": null,
-      "statusCheckAttempts": 3,
-      "createdAt": "2024-01-15T10:30:00.000Z",
-      "updatedAt": "2024-01-15T10:35:00.000Z"
+  "data": {
+    "orders": [
+      {
+        "id": "order_id",
+        "service": {
+          "id": "service_id",
+          "name": "MTN 100 Units"
+        },
+        "performedBy": {
+          "id": "user_id",
+          "name": "John Doe",
+          "role": "client"
+        },
+        "status": "completed",
+        "amountSYP": 10600.00,
+        "quantity": 1,
+        "customerInput": {
+          "phone": "0944123456"
+        },
+        "createdAt": "2024-01-15T10:30:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 50,
+      "totalPages": 3
     }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 50,
-    "totalPages": 3
   }
 }
 ```
@@ -168,46 +236,25 @@ Authorization: Bearer <access_token>
 {
   "success": true,
   "data": {
-    "id": "order_id",
-    "service": {
-      "id": "service_id",
-      "name": "MTN 100 Units",
-      "description": "Mobile top-up service"
-    },
-    "externalProvider": {
-      "id": "provider_id",
-      "name": "Shehabi",
-      "providerType": "shehabi"
-    },
-    "performedBy": {
-      "id": "user_id",
-      "name": "Agent Name",
-      "email": "agent@example.com",
-      "role": "agent"
-    },
-    "status": "completed",
-    "amountSYP": 10600.00,
-    "costUSD": 100.00,
-    "profitUSD": 5.00,
-    "badge": {
-      "id": "badge_id",
-      "name": "bronze",
-      "displayName": "Bronze"
-    },
-    "exchangeRateAtOrder": 10600.00,
-    "quantity": 1,
-    "customerInput": {
-      "phone": "0944123456"
-    },
-    "externalOrderId": "provider_order_id",
-    "externalOrderUuid": "uuid-string",
-    "providerResponse": {},
-    "failureReason": null,
-    "debitTransaction": "transaction_id",
-    "refundTransaction": null,
-    "statusCheckAttempts": 3,
-    "createdAt": "2024-01-15T10:30:00.000Z",
-    "updatedAt": "2024-01-15T10:35:00.000Z"
+    "order": {
+      "id": "order_id",
+      "service": {
+        "id": "service_id",
+        "name": "MTN 100 Units"
+      },
+      "performedBy": {
+        "id": "user_id",
+        "name": "John Doe",
+        "role": "client"
+      },
+      "status": "completed",
+      "amountSYP": 10600.00,
+      "quantity": 1,
+      "customerInput": {
+        "phone": "0944123456"
+      },
+      "createdAt": "2024-01-15T10:30:00.000Z"
+    }
   }
 }
 ```
@@ -233,13 +280,98 @@ Authorization: Bearer <access_token>
 {
   "success": true,
   "data": {
-    "id": "order_id",
-    "status": "completed",
-    "providerResponse": {
+    "order": {
+      "id": "order_id",
       "status": "completed",
-      "message": "Order fulfilled successfully"
-    },
-    "updatedAt": "2024-01-15T10:35:00.000Z"
+      "providerResponse": {
+        "status": "completed",
+        "message": "Order fulfilled successfully"
+      },
+      "updatedAt": "2024-01-15T10:35:00.000Z"
+    }
+  }
+}
+```
+
+### Services
+
+#### List Services
+
+Retrieve all available services.
+
+```http
+GET /client/services
+Authorization: Bearer <access_token>
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `includeProfits` | boolean | Include profit information | false |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "products": [
+      {
+        "id": "service_id",
+        "name": "MTN 100 Units",
+        "description": "Mobile top-up service",
+        "externalProvider": {
+          "id": "provider_id",
+          "name": "Shehabi",
+          "providerType": "shehabi"
+        },
+        "costPriceUSD": 100.00,
+        "sellingPriceSYP": 10600.00,
+        "pricingType": "fixed",
+        "quantityRules": {
+          "min": 1,
+          "max": 1
+        },
+        "requiredFields": [
+          {
+            "key": "phone",
+            "label": "أدخل الرقم بدون النداء",
+            "type": "phone",
+            "required": true
+          }
+        ],
+        "category": "وحدات ام تي ان",
+        "isActive": true
+      }
+    ]
+  }
+}
+```
+
+### Exchange Rate
+
+#### Get Exchange Rate
+
+Get the current active exchange rate.
+
+```http
+GET /client/exchange-rate
+Authorization: Bearer <access_token>
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "rate": {
+      "id": "rate_id",
+      "rate": 10600.00,
+      "isActive": true,
+      "effectiveDate": "2024-01-15T00:00:00.000Z"
+    }
   }
 }
 ```
@@ -260,18 +392,13 @@ Authorization: Bearer <access_token>
 | Parameter | Type | Description | Default |
 |-----------|------|-------------|---------|
 | `page` | number | Page number | 1 |
-| `limit` | number | Items per page | 20 |
+| `limit` | number | Items per page | 30 |
 | `type` | string | Filter by transaction type | - |
-| `status` | string | Filter by status | - |
-| `startDate` | string | Filter by start date (ISO 8601) | - |
-| `endDate` | string | Filter by end date (ISO 8601) | - |
-| `sortBy` | string | Sort field (createdAt, amount) | createdAt |
-| `sortOrder` | string | Sort order (asc, desc) | desc |
 
 **Transaction Types:**
 - `client_deposit` - Deposit to client balance
 - `client_withdraw` - Withdrawal from client balance
-- `agent_to_client_transfer` - Transfer from agent to client
+- `service_order` - Order payment
 - `order_refund` - Refund for failed/cancelled order
 
 **Response:**
@@ -279,40 +406,66 @@ Authorization: Bearer <access_token>
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": "transaction_id",
-      "type": "client_deposit",
-      "currency": "SYP",
-      "amount": 50000.00,
-      "user": {
-        "id": "user_id",
-        "name": "John Doe",
-        "email": "client@example.com"
-      },
-      "performedBy": {
-        "id": "admin_id",
-        "name": "Admin",
-        "email": "admin@sayed.com"
-      },
-      "balanceBefore": 100000.00,
-      "balanceAfter": 150000.00,
-      "order": null,
-      "externalProvider": null,
-      "providerBalanceBefore": null,
-      "providerBalanceAfter": null,
-      "description": "Deposit to client balance",
-      "metadata": {},
-      "status": "completed",
-      "idempotencyKey": "unique-key",
-      "createdAt": "2024-01-15T10:30:00.000Z"
+  "data": {
+    "transactions": [
+      {
+        "id": "transaction_id",
+        "type": "client_deposit",
+        "currency": "SYP",
+        "amount": 50000.00,
+        "user": {
+          "id": "user_id",
+          "name": "John Doe",
+          "email": "client@example.com"
+        },
+        "performedBy": {
+          "id": "admin_id",
+          "name": "Admin"
+        },
+        "balanceBefore": 100000.00,
+        "balanceAfter": 150000.00,
+        "description": "Deposit to client balance",
+        "status": "completed",
+        "createdAt": "2024-01-15T10:30:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 30,
+      "total": 50,
+      "totalPages": 2
     }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 50,
-    "totalPages": 3
+  }
+}
+```
+
+### Agents
+
+#### List Agents
+
+View all available agents (read-only access).
+
+```http
+GET /client/agents
+Authorization: Bearer <access_token>
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "agents": [
+      {
+        "id": "agent_id",
+        "name": "Agent Name",
+        "address": "123 Main St",
+        "phone": "0944123456",
+        "clientIntegerId": 2001,
+        "createdAt": "2024-01-15T10:30:00.000Z"
+      }
+    ]
   }
 }
 ```
@@ -359,8 +512,9 @@ All endpoints may return error responses in the following format:
 |-------------|-------------|
 | 400 | Bad Request - Invalid input data |
 | 401 | Unauthorized - Missing or invalid token |
-| 403 | Forbidden - Insufficient permissions |
+| 403 | Forbidden - Account blocked or insufficient permissions |
 | 404 | Not Found - Resource not found |
+| 422 | Unprocessable Entity - Insufficient balance |
 | 429 | Too Many Requests - Rate limit exceeded |
 | 500 | Internal Server Error - Server error |
 
@@ -376,6 +530,7 @@ Authentication endpoints are rate-limited to 30 requests per 15 minutes per IP a
 4. **Handle errors gracefully** - Display user-friendly error messages
 5. **Validate input** - Validate all user input before sending to API
 6. **Use pagination** - For large datasets, use pagination to improve performance
+7. **Check account status** - Verify your account is not blocked before placing orders
 
 ## Support
 
