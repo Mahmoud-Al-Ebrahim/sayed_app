@@ -5,3 +5,8 @@ export { Service } from './Service.js';
 export { Transaction } from './Transaction.js';
 export { BalanceRequest } from './BalanceRequest.js';
 export { Order } from './Order.js';
+export { Notification } from './Notification.js';
+export { Badge } from './Badge.js';
+export { ProductProfit } from './ProductProfit.js';
+export { ProviderDeposit } from './ProviderDeposit.js';
+export { Agent } from './Agent.js';

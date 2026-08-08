@@ -5,6 +5,7 @@ import * as agentCollectionController from '../controllers/agentCollection.contr
 import * as mergedProductsController from '../controllers/mergedProducts.controller.js';
 import * as badgeController from '../controllers/badge.controller.js';
 import * as productProfitController from '../controllers/productProfit.controller.js';
+import * as notificationController from '../controllers/notification.controller.js';
 
 const router = Router();
 
@@ -78,5 +79,13 @@ router.post('/merged-products/refresh', authenticate, requireAdmin, mergedProduc
 
 // Manual trigger for order status check (admin only)
 router.post('/orders/check-status', authenticate, requireAdmin, mergedProductsController.triggerOrderStatusCheck);
+
+// Notification management (admin only)
+router.post('/notifications/send-all', notificationController.sendNotificationToAll);
+router.post('/notifications/send-roles', notificationController.sendNotificationToRoles);
+router.post('/notifications/send-users', notificationController.sendNotificationToUsers);
+router.get('/notifications', notificationController.listNotifications);
+router.get('/notifications/:id', notificationController.getNotification);
+router.delete('/notifications/:id', notificationController.deleteNotification);
 
 export default router;

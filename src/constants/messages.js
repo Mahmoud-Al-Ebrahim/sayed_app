@@ -93,4 +93,11 @@ export const msg = {
   INSUFFICIENT_PROVIDER_BALANCE: 'رصيد المزوّد غير كافٍ',
   BALANCE_VERSION_CONFLICT: 'تعارض في تحديث الرصيد، يرجى إعادة المحاولة',
   PROVIDER_BALANCE_VERSION_CONFLICT: 'تعارض في تحديث رصيد المزوّد، يرجى إعادة المحاولة',
+
+  // الإشعارات
+  NOTIFICATION_NOT_FOUND: 'الإشعار غير موجود',
+  NOTIFICATION_ALREADY_PROCESSED: 'تمت معالجة الإشعار مسبقاً',
+  NOTIFICATION_TARGET_INVALID: 'بيانات الاستهداف غير صالحة',
+  NOTIFICATION_SENT: 'تم إرسال الإشعار بنجاح',
+  NOTIFICATION_MARKED_READ: 'تم تحديد الإشعار كمقروء',
 };

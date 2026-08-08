@@ -390,6 +390,34 @@ export async function depositToClient(req, res, next) {
   }
 }
 
+export async function withdrawFromClient(req, res, next) {
+  try {
+    const client = await User.findById(req.params.id);
+    
+    if (!client) {
+      return res.status(404).json({ success: false, message: msg.USER_NOT_FOUND });
+    }
+
+    if (client.role !== ROLES.CLIENT) {
+      return res.status(400).json({ success: false, message: 'User is not a client' });
+    }
+
+    const transaction = await adjustUserBalance({
+      userId: client._id,
+      amount: -req.body.amount, // Negative amount for withdrawal
+      type: TRANSACTION_TYPES.CLIENT_WITHDRAW,
+      performedBy: req.user._id,
+      counterparty: req.user._id,
+      description: req.body.note || 'Admin withdrawal from client',
+      idempotencyKey: req.body.idempotencyKey,
+    });
+
+    res.status(201).json({ success: true, data: { transaction } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function createProviderDeposit(req, res, next) {
   try {
     const { provider, amount, currency, depositDate, notes } = req.body;
