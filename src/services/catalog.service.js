@@ -7,7 +7,7 @@ import { toMoney } from '../utils/money.js';
 export async function listServices({ activeOnly = false, providerId, includeBadgePrices = false } = {}) {
   const filter = {};
   if (activeOnly) filter.isActive = true;
-  if (providerId) filter.externalProvider = providerId;
+  // if (providerId) filter.externalProvider = providerId;
 
   const services = await Service.find(filter)
     .populate('externalProvider', 'name providerType isActive')
